@@ -1,0 +1,114 @@
+@model IEnumerable<UniCP.Models.Lisans.LisansVm>
+@{
+    ViewData["Title"] = "Lisanslarım";
+    Layout = "~/Views/Shared/_LayoutMusteri.cshtml";
+}
+
+<div class="space-y-6 animate-in fade-in duration-500">
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-medium text-white tracking-tight">Lisanslarım</h1>
+            <p class="text-sm text-slate-400 font-medium">Sahip olduğunuz tüm Univera ürün lisanslarını buradan takip edebilirsiniz.</p>
+        </div>
+        <div class="flex items-center space-x-3">
+            <div class="relative">
+                <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                <input type="text" id="licenseSearch" placeholder="Lisans ara..." 
+                    class="pl-10 pr-4 py-2 bg-slate-800 border border-white/5 rounded-xl text-sm focus:ring-2 focus:ring-[#DD2F42] focus:border-transparent outline-none w-64 transition-all text-white placeholder:text-slate-600" />
+            </div>
+            <button class="p-2 bg-slate-800 border border-white/5 rounded-xl text-slate-400 hover:bg-slate-700 transition-colors">
+                <i class="bi bi-funnel"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5 flex items-center space-x-4">
+            <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl border border-blue-500/20">
+                <i class="bi bi-shield-check text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase">Toplam Lisans</p>
+                <h3 class="text-2xl font-medium text-white">@Model.Count()</h3>
+            </div>
+        </div>
+        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5 flex items-center space-x-4">
+            <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
+                <i class="bi bi-check-circle text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase">Aktif Lisanslar</p>
+                <h3 class="text-2xl font-medium text-white">@Model.Count()</h3>
+            </div>
+        </div>
+        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5 flex items-center space-x-4">
+            <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
+                <i class="bi bi-clock-history text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase">Yenileme Bekleyen</p>
+                <h3 class="text-2xl font-medium text-white">0</h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table Section -->
+    <div class="glass-panel bg-slate-800/50 rounded-[2rem] shadow-sm border border-white/5 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left" id="licenseTable">
+                <thead>
+                    <tr class="bg-slate-800/50 border-b border-white/5">
+                        <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Stok Kodu</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ürün Adı</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategori</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Açıklama</th>
+                        <th class="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Durum</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-white/5">
+                    @foreach (var item in Model)
+                    {
+                        <tr class="hover:bg-slate-700/50 transition-colors group">
+                            <td class="px-6 py-4">
+                                <span class="text-xs font-bold text-slate-400 group-hover:text-white transition-colors">@item.StokKodu</span>
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="flex flex-col">
+                                    <span class="text-sm font-bold text-white">@item.StokAdi</span>
+                                    <span class="text-[10px] text-slate-500 font-medium">@item.UrunGrubu</span>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-1 bg-slate-700 text-slate-300 text-[10px] font-bold rounded-lg border border-white/5">@item.Kategori</span>
+                            </td>
+                            <td class="px-6 py-4 max-w-xs">
+                                <p class="text-xs text-slate-500 line-clamp-2">@item.Aciklama</p>
+                            </td>
+                            <td class="px-6 py-4">
+                                <span class="flex items-center space-x-1.5">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                    <span class="text-[10px] font-bold text-emerald-500 uppercase">Aktif</span>
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $("#licenseSearch").on("keyup", function() {
+                var value = $(this).val().toLowerCase();
+                $("#licenseTable tbody tr").filter(function() {
+                    $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1)
+                });
+            });
+        });
+    </script>
+}

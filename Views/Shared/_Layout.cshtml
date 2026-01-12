@@ -1,0 +1,46 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Univera Connect</title>
+
+    <!-- Tailwind CSS (Generated) -->
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body class="font-sans antialiased page-enter">
+    
+    <div class="flex h-screen text-gray-100" style="background-color: var(--bg-main);">
+        <!-- Sidebar -->
+        <partial name="Partials/_Sidebar" />
+
+        <!-- Main Content Wrapper -->
+        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+            <!-- Navbar -->
+            <partial name="Partials/_Navbar" />
+
+            <!-- Page Content -->
+            <main class="flex-1 overflow-y-auto p-8">
+               <div class="w-full min-h-full">
+                    @RenderBody()
+               </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Legacy Scripts (jQuery + Bootstrap JS if needed for older components, 
+         though we removed BS CSS, some JS might still be used by legacy views) -->
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,156 @@
+@{
+    Layout = "_LayoutMusteri";
+}
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div>
+        <h1 class="text-3xl font-bold text-white tracking-tight">Sistem Performansı</h1>
+        <p class="text-slate-400 mt-2">Gerçek zamanlı sunucu ve uygulama metrikleri</p>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- System Status -->
+        <div class="glass-panel p-5 rounded-2xl flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500 animate-pulse">
+                <i class="bi bi-activity text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-400">System Status</p>
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    Operational
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                </h3>
+            </div>
+        </div>
+
+        <!-- Uptime -->
+        <div class="glass-panel p-5 rounded-2xl flex items-center gap-4">
+             <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-500">
+                <i class="bi bi-hdd-rack text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-400">Server Uptime</p>
+                <h3 class="text-xl font-bold text-white">99.98%</h3>
+                <p class="text-[10px] text-slate-500">Last 30 days</p>
+            </div>
+        </div>
+
+        <!-- Response Time -->
+        <div class="glass-panel p-5 rounded-2xl flex items-center gap-4">
+             <div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-500">
+                <i class="bi bi-lightning-charge text-2xl"></i>
+            </div>
+            <div>
+                <p class="text-sm text-slate-400">Avg. Response Time</p>
+                <h3 class="text-xl font-bold text-white">124ms</h3>
+                <p class="text-[10px] text-emerald-400 font-medium">↓ 12% vs last week</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- CPU Load (Mock) -->
+        <div class="glass-panel p-6 rounded-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold text-white">Server Load (CPU/RAM)</h3>
+                 <span class="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Last 1 hour</span>
+            </div>
+            <!-- Simple CSS-only Chart Representation -->
+             <div class="h-48 flex items-end justify-between gap-1 relative border-b border-slate-700/50 pb-2">
+                 <!-- Grid lines -->
+                 <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                     <div class="h-px bg-slate-700/20 w-full"></div>
+                     <div class="h-px bg-slate-700/20 w-full"></div>
+                     <div class="h-px bg-slate-700/20 w-full"></div>
+                     <div class="h-px bg-slate-700/20 w-full"></div>
+                     <div class="h-px bg-slate-700/20 w-full"></div>
+                 </div>
+                 
+                 <!-- Bars -->
+                 <div class="w-full bg-indigo-500/20 h-[30%] rounded-t-sm mx-0.5 relative group">
+                     <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                 <div class="w-full bg-indigo-500/20 h-[45%] rounded-t-sm mx-0.5 relative group">
+                     <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                 <div class="w-full bg-indigo-500/20 h-[35%] rounded-t-sm mx-0.5 relative group">
+                     <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                 <div class="w-full bg-indigo-500/20 h-[60%] rounded-t-sm mx-0.5 relative group">
+                      <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                  <div class="w-full bg-indigo-500/20 h-[75%] rounded-t-sm mx-0.5 relative group">
+                      <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                  <div class="w-full bg-indigo-500/20 h-[50%] rounded-t-sm mx-0.5 relative group">
+                      <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                 <div class="w-full bg-indigo-500/20 h-[40%] rounded-t-sm mx-0.5 relative group">
+                      <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+                 <div class="w-full bg-indigo-500/20 h-[55%] rounded-t-sm mx-0.5 relative group">
+                      <div class="absolute bottom-0 w-full bg-indigo-500 h-full opacity-60 group-hover:opacity-100 transition-opacity"></div>
+                 </div>
+             </div>
+        </div>
+
+        <!-- Request Volume (Mock) -->
+         <div class="glass-panel p-6 rounded-2xl">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-lg font-bold text-white">API Requests by Service</h3>
+                 <button class="text-slate-400 hover:text-white transition-colors">
+                     <i class="bi bi-three-dots"></i>
+                 </button>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Service 1 -->
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">SFA Synchronization</span>
+                        <span class="text-white font-mono">4,821</span>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-blue-500 w-[75%] rounded-full"></div>
+                    </div>
+                </div>
+                 <!-- Service 2 -->
+                <div>
+                     <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">WMS Authenication</span>
+                        <span class="text-white font-mono">3,240</span>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-purple-500 w-[50%] rounded-full"></div>
+                    </div>
+                </div>
+                 <!-- Service 3 -->
+                <div>
+                     <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">BI Reporting Engine</span>
+                        <span class="text-white font-mono">1,105</span>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-amber-500 w-[25%] rounded-full"></div>
+                    </div>
+                </div>
+                 <!-- Service 4 -->
+                <div>
+                     <div class="flex justify-between text-sm mb-1">
+                        <span class="text-slate-300">Main Portal</span>
+                        <span class="text-white font-mono">2,850</span>
+                    </div>
+                    <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-teal-500 w-[40%] rounded-full"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
