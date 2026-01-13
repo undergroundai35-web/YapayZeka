@@ -112,6 +112,8 @@ namespace UniCP.Controllers
                 if (baseProgress == 100 && (baseStatus == "Analiz" || baseStatus == "ACTIVE")) baseProgress = 15;
                 if (baseProgress == 0 && baseStatus == "Analiz") baseProgress = 15;
 
+                decimal? yazilimInfo = decimal.TryParse(tfs.YAZILIM_TOPLAMAG, out var y) ? y : null;
+
                 viewModels.Add(new Request
                 {
                     Id = id,
@@ -128,8 +130,8 @@ namespace UniCP.Controllers
                     Progress = baseProgress,
                     Budget = tfs.COST ?? "-",
                     AssignedTo = tfs.YARATICI ?? "Atanmamış",
-                    Effort = tfs.YAZILIM_TOPLAMAG.HasValue ? tfs.YAZILIM_TOPLAMAG.Value.ToString("N1") + " K/G" : "-",
-                    Cost = tfs.YAZILIM_TOPLAMAG.HasValue ? (tfs.YAZILIM_TOPLAMAG.Value * 22500).ToString("N0") + " TL" : "-", 
+                    Effort = yazilimInfo.HasValue ? yazilimInfo.Value.ToString("N1") + " K/G" : "-",
+                    Cost = yazilimInfo.HasValue ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
                     Type = "Geliştirme",
                     Subtasks = new List<Subtask>(),
                     Comments = comments,

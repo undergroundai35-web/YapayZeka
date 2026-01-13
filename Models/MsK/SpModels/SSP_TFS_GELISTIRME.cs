@@ -15,7 +15,7 @@ namespace UniCP.Models.MsK.SpModels
         public string? SATISDURUMU { get; set; }
         public string? URUN { get; set; }
         public string? MOBIL { get; set; }
-        public decimal? YAZILIM_TOPLAMAG { get; set; }
+        public string? YAZILIM_TOPLAMAG { get; set; }
         public decimal? TAMAMLANMA_OARANI { get; set; }
         public string? MUSTERI_SORUMLUSU { get; set; }
         public string? SATIS_SORUMLUSU { get; set; }
