@@ -50,5 +50,28 @@ namespace UniCP.DbData
                 .AsNoTracking()
                 .ToList();
         }
+
+        public List<SSP_VARUNA_SIPARIS> SP_VARUNA_SIPARIS(int LNGORTAKFIRMAKOD)
+        {
+            return Set<SSP_VARUNA_SIPARIS>()
+                .FromSqlRaw("EXEC SSP_VARUNA_SIPARIS @ORTAKPROJEKOD = @P0", LNGORTAKFIRMAKOD)
+                .AsNoTracking()
+                .ToList();
+        }
+        public List<SSP_VARUNA_SIPARIS_DETAY> SP_VARUNA_SIPARIS_DETAY(string ORDERID)
+        {
+            return Set<SSP_VARUNA_SIPARIS_DETAY>()
+                .FromSqlRaw("EXEC SSP_VARUNA_SIPARIS_DETAY @ORDERID = @P0", ORDERID)
+                .AsNoTracking()
+                .ToList();
+        }
+         public List<SSP_VARUNA_CHART_DATA> SP_VARUNA_CHART_DATA(int LNGORTAKFIRMAKOD)
+        {
+            return Set<SSP_VARUNA_CHART_DATA>()
+                .FromSqlRaw("EXEC SSP_VARUNA_CHART_DATA @ORTAKPROJEKOD = @P0", LNGORTAKFIRMAKOD)
+                .AsNoTracking()
+                .ToList();
+        }
+
     }
 }

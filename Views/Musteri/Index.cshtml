@@ -86,14 +86,14 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 h-[300px]">
-                <div class="relative h-full">
+            <div class="grid grid-cols-1 gap-8">
+                <div class="relative">
                     <p class="text-center text-[10px] font-bold text-indigo-400 mb-4">Destek Hizmetleri SLA</p>
                     <div class="h-[240px] relative">
                         <canvas id="supportSlaChart"></canvas>
                     </div>
                 </div>
-                <div class="relative h-full">
+                <div class="relative">
                     <p class="text-center text-[10px] font-bold text-blue-400 mb-4">Geliştirme Hizmetleri SLA</p>
                     <div class="h-[240px] relative">
                         <canvas id="devSlaChart"></canvas>
@@ -172,7 +172,7 @@
         // Custom Plugin for Line Shadow
         const lineShadowPlugin = {
             id: 'lineShadow',
-            afterDraw: (chart) => {
+            beforeDatasetsDraw: (chart) => {
                 if (chart.config.type !== 'line') return;
                 const ctx = chart.ctx;
                 chart.data.datasets.forEach((dataset, i) => {
@@ -201,7 +201,10 @@
             .sort((a, b) => (a.yil * 100 + a.ay) - (b.yil * 100 + b.ay))
             .slice(-6);
         
-        const slaLabels = sortedSla.map(i => i.donem.split('-')[1] || i.donem);
+        const slaLabels = sortedSla.map(i => {
+            const month = i.donem.split('-')[1] || i.donem;
+            return month.charAt(0).toUpperCase() + month.slice(1).toLowerCase();
+        });
         const slaDataPoints = sortedSla.map(i => i.oran);
         
         // Calculate dynamic Y-axis range
@@ -231,8 +234,9 @@
                     pointBackgroundColor: '#1a1f37',
                     pointBorderColor: '#34d399',
                     pointBorderWidth: 3,
-                    pointRadius: 5,
+                    pointRadius: 6,
                     pointHoverRadius: 10,
+                    pointStyle: 'circle',
                     pointHoverBackgroundColor: '#34d399',
                     pointHoverBorderColor: '#fff',
                     pointHoverBorderWidth: 3
@@ -249,11 +253,19 @@
                     duration: 1500,
                     easing: 'easeInOutQuart'
                 },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 0
+                    }
+                },
                 plugins: { 
                     legend: { display: false },
                     tooltip: {
                         enabled: true,
-                        backgroundColor: 'rgba(26, 31, 55, 0.95)',
+                        backgroundColor: '#1a1f37',
                         titleColor: '#fff',
                         titleFont: { size: 14, weight: 'bold' },
                         bodyColor: '#34d399',
@@ -307,7 +319,7 @@
         new Chart(document.getElementById('devSlaChart'), {
             type: 'line',
             data: {
-                labels: ['Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
+                labels: slaLabels,
                 datasets: [{
                     label: 'SLA',
                     data: devSlaData,
@@ -325,8 +337,9 @@
                     pointBackgroundColor: '#1a1f37',
                     pointBorderColor: '#60a5fa',
                     pointBorderWidth: 3,
-                    pointRadius: 5,
+                    pointRadius: 6,
                     pointHoverRadius: 10,
+                    pointStyle: 'circle',
                     pointHoverBackgroundColor: '#60a5fa',
                     pointHoverBorderColor: '#fff',
                     pointHoverBorderWidth: 3
@@ -343,11 +356,19 @@
                     duration: 1500,
                     easing: 'easeInOutQuart'
                 },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 0
+                    }
+                },
                 plugins: { 
                     legend: { display: false },
                     tooltip: {
                         enabled: true,
-                        backgroundColor: 'rgba(26, 31, 55, 0.95)',
+                        backgroundColor: '#1a1f37',
                         titleColor: '#fff',
                         titleFont: { size: 14, weight: 'bold' },
                         bodyColor: '#60a5fa',

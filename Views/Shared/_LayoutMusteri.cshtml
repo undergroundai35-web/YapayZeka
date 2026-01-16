@@ -1,13 +1,16 @@
 ﻿@{
     Layout = null;
+    bool aiEnabled = Configuration.GetValue<bool>("Gemini:Enabled");
 }
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
 
 <!DOCTYPE html>
 <html lang="tr" class="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - UniConnect</title>
+    <title>@ViewData["Title"] - Univera Connect</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,6 +39,9 @@
     
     <!-- Bootstrap Icons (for legacy icon support) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         body { 
@@ -210,7 +216,7 @@
             <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center p-1.5 flex-shrink-0">
                 <img src="/images/branding/logo-uniconnect-2d.png" class="w-full h-full object-contain" alt="Logo">
             </div>
-            <span class="text-lg font-bold text-white tracking-tight">UniConnect</span>
+            <span class="text-lg font-bold text-white tracking-tight">Univera Connect</span>
         </div>
 
         <!-- Navigation -->
@@ -230,6 +236,11 @@
             <a href="/N4B/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
                 <i class="bi bi-headset mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "text-red-500 group-hover:text-red-400" : "")"></i>
                 Destek Merkezi
+            </a>
+
+            <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                Raporlar
             </a>
 
             <a href="/Finans/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
@@ -254,8 +265,33 @@
         </div>
 
         <!-- User Profile (Bottom) -->
-        <div class="p-4 border-t border-slate-700/50 bg-slate-900/50">
-            <div class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group">
+        <div class="p-4 border-t border-slate-700/50 bg-slate-900/50 space-y-3">
+
+            <!-- User Menu Popover -->
+            <div id="user-menu-popover" class="hidden absolute bottom-24 left-4 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200">
+                <div class="p-3 border-b border-white/5">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Ayarlar</p>
+                    
+                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <i class="bi bi-robot text-indigo-400"></i>
+                            <span class="text-xs text-slate-300 font-medium">UniCore</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="ai-toggle-switch" class="sr-only peer" onchange="toggleAiVisibility(this.checked)">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+                </div>
+                <div class="p-1 items-center bg-slate-900/50">
+                     <a href="/Account/LogOut" onclick="sessionStorage.removeItem('uniCore_enabled'); sessionStorage.removeItem('uniCore_chatOpen');" class="flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors w-full">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Oturumu Kapat</span>
+                    </a>
+                </div>
+            </div>
+
+            <div onclick="toggleUserMenu()" class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group relative" title="Kullanıcı Menüsü">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
                     @User.Identity.Name?.Substring(0, 1).ToUpper()
                 </div>
@@ -263,9 +299,7 @@
                     <p class="text-sm font-semibold text-white truncate">@User.Identity.Name</p>
                     <p class="text-xs text-slate-400 truncate">Müşteri Yöneticisi</p>
                 </div>
-                <a href="/Account/LogOut" class="text-slate-500 hover:text-red-400 transition-colors p-2">
-                    <i class="bi bi-box-arrow-right text-lg"></i>
-                </a>
+                <i class="bi bi-three-dots-vertical text-slate-500 group-hover:text-white transition-colors"></i>
             </div>
         </div>
     </aside>
@@ -275,10 +309,13 @@
         <!-- Top Header (Mobile/Utility) -->
         <header class="h-20 flex items-center justify-between px-8 border-b border-slate-700/30 bg-[#0F172A]/80 backdrop-blur-md sticky top-0 z-40">
             <!-- Breadcrumb / Page Title Placeholder -->
-            <div>
-                <h2 class="text-xl font-semibold text-white">@ViewData["Title"]</h2>
-                <p class="text-sm text-slate-500">Mevcut oturum: @DateTime.Now.ToString("dd MMMM yyyy")</p>
-            </div>
+            @if (ViewData["HidePageHeader"] == null || !(bool)ViewData["HidePageHeader"])
+            {
+                <div>
+                    <h2 class="text-xl font-semibold text-white">@ViewData["Title"]</h2>
+                    <p class="text-sm text-slate-500">Mevcut oturum: @DateTime.Now.ToString("dd MMMM yyyy")</p>
+                </div>
+            }
 
             <!-- Right Actions -->
             <div class="flex items-center gap-4">
@@ -299,6 +336,280 @@
             @RenderBody()
         </main>
     </div>
+
+    <!-- AI Chat Widget -->
+    @if (aiEnabled)
+    {
+    <div id="ai-widget-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+        <!-- Chat Window (Hidden by default) -->
+        <div id="ai-chat-window" class="hidden w-80 md:w-96 bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right transform scale-95 opacity-0" style="height: 500px;">
+            <!-- Header -->
+            <div class="h-16 bg-gradient-to-r from-indigo-600 to-violet-600 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">UniCore</h3>
+                        <p class="text-[10px] text-indigo-100 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Çevrimiçi
+                        </p>
+                    </div>
+                </div>
+                <button onclick="toggleChat()" class="text-white/70 hover:text-white transition-colors">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900 scroll-smooth">
+                <!-- Welcome Message -->
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 shadow-sm max-w-[85%]">
+                        <p>Merhaba! Ben UniCore. Size finansal raporlarınızda, destek taleplerinizde veya site içinde gezinmenizde yardımcı olabilirim.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 bg-slate-800/50 border-t border-slate-700/50">
+                <form onsubmit="sendMessage(event)" class="relative">
+                    <input type="text" id="chat-input" 
+                           class="w-full bg-slate-900/50 border border-slate-700/50 text-slate-200 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 placeholder-slate-500 transition-all" 
+                           placeholder="Bir şeyler yazın... (örn: 'Ekstre indir')">
+                    <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed" id="send-btn">
+                        <i class="bi bi-send-fill text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Float Button -->
+        <button id="ai-float-btn" onclick="toggleChat()" class="hidden group relative flex items-center justify-center w-14 h-14 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-full shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:scale-105 transition-all duration-300 z-50">
+            <div class="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+            <i class="bi bi-chat-dots-fill text-2xl text-white drop-shadow-md"></i>
+            
+            <!-- Notification Badge -->
+            <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-[#0F172A] flex items-center justify-center">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+            </span>
+        </button>
+    </div>
+    }
+
+    <!-- Scripts for AI Chat -->
+    <script>
+        const chatWindow = document.getElementById('ai-chat-window');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const floatBtn = document.getElementById('ai-float-btn');
+        const userMenu = document.getElementById('user-menu-popover');
+        let isChatOpen = false;
+
+        function toggleUserMenu() {
+            if (userMenu) {
+                userMenu.classList.toggle('hidden');
+            }
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const profileDiv = document.querySelector('[onclick="toggleUserMenu()"]');
+            if (userMenu && !userMenu.classList.contains('hidden')) {
+                if (!userMenu.contains(event.target) && !profileDiv.contains(event.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            }
+        });
+
+        function toggleAiVisibility(enabled) {
+            sessionStorage.setItem('uniCore_enabled', enabled);
+            if (!floatBtn) return;
+
+            if (enabled) {
+                floatBtn.classList.remove('hidden');
+            } else {
+                floatBtn.classList.add('hidden');
+                // Also close chat if it's open
+                if (isChatOpen) {
+                    toggleChat(); 
+                }
+            }
+        }
+
+        function toggleChat() {
+            if (!chatWindow) return;
+            
+            // Rewrite visibility logic: Always show button once activated
+            if (floatBtn && floatBtn.classList.contains('hidden')) {
+                floatBtn.classList.remove('hidden');
+            }
+
+            isChatOpen = !isChatOpen;
+            sessionStorage.setItem('uniCore_chatOpen', isChatOpen);
+
+            if (isChatOpen) {
+                chatWindow.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    chatWindow.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+                    chatInput.focus();
+                }, 10);
+            } else {
+                chatWindow.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+                setTimeout(() => {
+                    chatWindow.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        async function sendMessage(e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add User Message
+            appendMessage('user', message);
+            chatInput.value = '';
+            setLoading(true);
+
+            try {
+                const response = await fetch('/AI/Chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                // Add Bot Response
+                appendMessage('bot', data.text);
+
+                // Execute Action if present
+                if (data.action) {
+                    executeAction(data.action, data.payload);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('bot', 'Üzgünüm, bir bağlantı hatası oluştu. Lütfen tekrar deneyin.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function appendMessage(sender, text) {
+            const isUser = sender === 'user';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`;
+            
+            const avatar = isUser 
+                ? `<div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-sm text-white shadow-lg shadow-indigo-500/20">
+                     <i class="bi bi-person-fill"></i>
+                   </div>`
+                : `<div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                     <i class="bi bi-robot"></i>
+                   </div>`;
+
+            const bubbleClass = isUser 
+                ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/10' 
+                : 'bg-slate-800/80 border border-slate-700/50 text-slate-300 rounded-2xl rounded-tl-none shadow-sm';
+
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="${bubbleClass} p-3 text-sm max-w-[85%] leading-relaxed">
+                    <p>${text}</p>
+                </div>
+            `;
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function setLoading(isLoading) {
+            sendBtn.disabled = isLoading;
+            if (isLoading) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'chat-loading';
+                loadingDiv.className = 'flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300';
+                loadingDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-2xl rounded-tl-none text-slate-400 shadow-sm">
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        </div>
+                    </div>
+                `;
+                chatMessages.appendChild(loadingDiv);
+                scrollToBottom();
+            } else {
+                const loadingDiv = document.getElementById('chat-loading');
+                if (loadingDiv) loadingDiv.remove();
+                chatInput.focus();
+            }
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+
+
+        function executeAction(action, payload) {
+            console.log(`Executing Action: ${action} -> ${payload}`);
+            
+            if (action === 'navigate') {
+                setTimeout(() => {
+                    window.location.href = payload;
+                }, 1000);
+            } else if (action === 'download') {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = payload;
+                    // If the payload doesn't imply a download, we might want to target _blank
+                    // But for DownloadStatement it returns a file attachment
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }, 1000);
+            }
+        }
+
+        // Restore State on Load
+        document.addEventListener("DOMContentLoaded", function() {
+            const storedEnabled = sessionStorage.getItem('uniCore_enabled');
+            const storedChatOpen = sessionStorage.getItem('uniCore_chatOpen');
+            
+            // Only restore if previously set (not null)
+            if (storedEnabled !== null) {
+                const isEnabled = storedEnabled === 'true';
+                const toggleSwitch = document.getElementById('ai-toggle-switch');
+                if (toggleSwitch) {
+                    toggleSwitch.checked = isEnabled;
+                    toggleAiVisibility(isEnabled);
+                }
+
+                if (isEnabled && storedChatOpen === 'true') {
+                    // Small delay to ensure float button is visible before toggling chat
+                    setTimeout(() => {
+                        if (!isChatOpen) toggleChat();
+                    }, 100);
+                }
+            }
+        });
+    </script>
 
     <!-- Bootstrap Bundle (Optional fallback for some components) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>

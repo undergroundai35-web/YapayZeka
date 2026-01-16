@@ -12,7 +12,7 @@
             <h1 class="text-2xl font-semibold text-white tracking-tight">Geliştirme Talepleri</h1>
             <p class="text-sm text-slate-400 font-normal">Aktif geliştirme talepleri ve proje süreçleri</p>
         </div>
-        <button class="px-5 py-2.5 bg-[#DD2F42] hover:bg-[#B93042] text-white rounded-xl shadow-lg shadow-red-900/20 transition-all font-semibold text-xs flex items-center gap-2 hover:scale-[1.02] active:scale-95">
+        <button onclick="openCreateModal()" class="px-5 py-2.5 bg-[#DD2F42] hover:bg-[#B93042] text-white rounded-xl shadow-lg shadow-red-900/20 transition-all font-semibold text-xs flex items-center gap-2 hover:scale-[1.02] active:scale-95">
             <i class="bi bi-plus-lg"></i>
             <span>Yeni Talep Ekle</span>
         </button>
@@ -26,11 +26,11 @@
         </div>
         <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
             <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Geliştirme Aşamasında</p>
-            <h3 class="text-2xl font-semibold text-emerald-400">@Model.Count(r => r.Status == "Geliştirme")</h3>
+            <h3 class="text-2xl font-semibold text-emerald-400">@Model.Count(r => r.Status == "Geliştirme" || r.Status == "Proje Testi")</h3>
         </div>
         <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
             <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Onay Bekleyen</p>
-            <h3 class="text-2xl font-semibold text-orange-400">@Model.Count(r => r.Status.Contains("Bekliyor"))</h3>
+            <h3 class="text-2xl font-semibold text-orange-400">@Model.Count(r => r.Status == "Bütçe Onayı" || r.Status == "Müşteri UAT" || r.Status.Contains("Bekliyor"))</h3>
         </div>
         <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
             <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Geliştirme Bekleyen</p>

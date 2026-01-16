@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 using NuGet.Common;
@@ -164,16 +165,21 @@ public class AccountController : Controller
 
                 if (result.Succeeded)
                 {
-                    // Fetch Company Name from TBL_KULLANICI
-                    var firmaAdi = _mskDb.TBL_KULLANICIs
+                    // Fetch Company Name & User Type from TBL_KULLANICI
+                    var dbUser = _mskDb.TBL_KULLANICIs
                         .Where(x => x.LNGIDENTITYKOD == user.Id)
-                        .Select(x => x.TXTFIRMAADI)
+                        .Select(x => new { x.TXTFIRMAADI, x.LNGKULLANICITIPI })
                         .FirstOrDefault();
 
                     var claims = new List<Claim>();
-                    if (!string.IsNullOrEmpty(firmaAdi))
+                    if (dbUser != null)
                     {
-                        claims.Add(new Claim("FirmaAdi", firmaAdi));
+                        if (!string.IsNullOrEmpty(dbUser.TXTFIRMAADI))
+                        {
+                            claims.Add(new Claim("FirmaAdi", dbUser.TXTFIRMAADI));
+                        }
+                        // Add UserType Claim (1=Admin, 2=Customer)
+                        claims.Add(new Claim("UserType", dbUser.LNGKULLANICITIPI?.ToString() ?? "0"));
                     }
 
                     // Sign in with additional claims
@@ -181,6 +187,14 @@ public class AccountController : Controller
 
                     await _userManager.ResetAccessFailedCountAsync(user);
                     await _userManager.SetLockoutEndDateAsync(user, null);
+
+                    // Force Password Change Check
+                    // Check directly against the user object we just signed in
+                    var userClaims = await _userManager.GetClaimsAsync(user);
+                    if (userClaims.Any(c => c.Type == "ForcePasswordChange" && c.Value == "true"))
+                    {
+                        return RedirectToAction("ChangePassword");
+                    }
 
                     if (!string.IsNullOrEmpty(returnUrl))
                     {
@@ -195,7 +209,7 @@ public class AccountController : Controller
                             return RedirectToAction("Index", "Musteri");
                         } else if (k_tip == 1)
                         {
-                            return RedirectToAction("Index", "Yonetim");
+                            return RedirectToAction("Index", "Musteri");
                         }
 
                         return RedirectToAction("Index", "Home");
@@ -226,6 +240,9 @@ public class AccountController : Controller
                 TempData["Mesaj"] = "Hatalı email";
             }
         }
+        
+
+
         return View(model);
     }
 
@@ -311,7 +328,21 @@ public class AccountController : Controller
 
                 if (result.Succeeded)
                 {
-                    TempData["Mesaj"] = "Parolanız güncellendi";
+                    // Remove ForcePasswordChange claim if exists
+                    var claims = await _userManager.GetClaimsAsync(user);
+                    var forceClaim = claims.FirstOrDefault(c => c.Type == "ForcePasswordChange");
+                    if (forceClaim != null)
+                    {
+                        await _userManager.RemoveClaimAsync(user, forceClaim);
+                    }
+
+                    TempData["Mesaj"] = "Parolanız güncellendi. Lütfen yeni şifrenizle giriş yapınız.";
+
+                    // Sign out to force re-login with new password
+                    await _signInManager.SignOutAsync();
+
+                    return RedirectToAction("Login", "Account");
+
                 }
 
                 foreach (var error in result.Errors)
@@ -341,30 +372,97 @@ public class AccountController : Controller
             return View();
         }
 
+        // 1. Try to find in AspNetUsers by Email
         var user = await _userManager.FindByEmailAsync(email);
 
         if (user == null)
         {
-            TempData["Mesaj"] = "Bu eposta adresi kayıtlı değil";
-            return View();
+            // 2. Try to find in AspNetUsers by UserName
+            user = await _userManager.FindByNameAsync(email);
         }
 
-        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        if (user == null)
+        {
+            // 3. Try to find in TBL_KULLANICI (Business Table)
+            var dbUser = await _mskDb.TBL_KULLANICIs.FirstOrDefaultAsync(x => x.TXTEMAIL == email);
+            if (dbUser != null && dbUser.LNGIDENTITYKOD.HasValue)
+            {
+                user = await _userManager.FindByIdAsync(dbUser.LNGIDENTITYKOD.Value.ToString());
+            }
+        }
 
-        var url = Url.Action("ResetPassword", "Account", new { userId = user.Id, token });
+        if (user == null)
+        {
+            TempData["Mesaj"] = "Girdiğiniz mail adresi sistemde kayıtlı değil. Lütfen geçerli bir mail adresi giriniz."; 
+            return View(); // Stay on the same page to allow retry
+        }
 
-        //  var link = $"<a href='http://localhost:5162{url}'>Şifre Yenile</a>";
-        string sunucu = _mskDb.PARAMETRELERs.Where(i => i.ParametreAdi == "UYGULAMAROOTMAP").Select(i => i.Deger).FirstOrDefault();
+        // Generate Random Password
+        string randomPassword = GenerateRandomPassword(8);
+        
+        // Reset Password to Random Password
+        // Bypass token logic for forced administrative reset
+        // string randomPassword = GenerateRandomPassword(8); // ALREADY DEFINED ABOVE
 
-        MailBody mb = new MailBody();
+        // Remove password if exists
+        if (await _userManager.HasPasswordAsync(user))
+        {
+             await _userManager.RemovePasswordAsync(user);
+        }
+        
+        // Add new random password
+        var result = await _userManager.AddPasswordAsync(user, randomPassword);
 
-        var link = mb.resetlememail(user.UserName!, sunucu + url);
+        if (result.Succeeded)
+        {
+            // Remove ForcePasswordChange claim if exists
+            var claims = await _userManager.GetClaimsAsync(user);
+            if (!claims.Any(c => c.Type == "ForcePasswordChange"))
+            {
+                await _userManager.AddClaimAsync(user, new Claim("ForcePasswordChange", "true"));
+            }
 
-        await _emailService.SendEmailAsync(user.Email!, "Parola Sıfırlama", link);
+            try 
+            {
+                // Send Email
+                // Use the input 'email' because we verified it belongs to this user (either via Identity or TBL_KULLANICI)
+                // and user.Email might be different or outdated in Identity.
+                MailBody mb = new MailBody();
+                var body = mb.TemporaryPasswordEmail(user.UserName!, randomPassword);
+                
+                // Use input 'email' explicitly
+                await _emailService.SendEmailAsync(email, "Geçici Şifreniz", body);
+                
+                TempData["Mesaj"] = $"Geçici şifreniz '{email}' adresine gönderildi. (Lütfen Spam/Gereksiz kutusunu da kontrol ediniz)";
+                return RedirectToAction("Login");
+            }
+            catch (Exception ex)
+            {
+                 // Create a log or feedback mechanism here
+                 TempData["Mesaj"] = "Şifre oluşturuldu ancak mail gönderilemedi: " + ex.Message;
+                 return RedirectToAction("Login");
+            }
+        }
+        else 
+        {
+             string errors = string.Join("; ", result.Errors.Select(e => e.Description));
+             TempData["Mesaj"] = "Şifre sıfırlama hatası: " + errors;
+             return View();
+        }
+    }
 
-        TempData["Mesaj"] = "Eposta adresine gönderilen link ile şifreni sıfırlayabilirsin.";
-
-        return RedirectToAction("Login");
+    private string GenerateRandomPassword(int length)
+    {
+        const string valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*";
+        System.Text.StringBuilder res = new System.Text.StringBuilder();
+        Random rnd = new Random();
+        for (int i = 0; i < length; i++)
+        {
+            res.Append(valid[rnd.Next(valid.Length)]);
+        }
+        // Ensure complexity requirements usually needed by Identity
+        res.Append("A1!"); 
+        return res.ToString();
     }
 
     public async Task<ActionResult> ResetPassword(string userId, string token)
@@ -417,4 +515,7 @@ public class AccountController : Controller
         }
         return View(model);
     }
+
+
+
 }

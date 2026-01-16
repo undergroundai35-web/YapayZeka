@@ -12,16 +12,35 @@
                 </div>
                 <div class="flex-1">
                     <h2 id="modalTitle" class="text-xl font-normal text-white tracking-normal">@Model.Title</h2>
+                    <input id="modalEditTitle" class="hidden w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-lg focus:outline-none focus:border-red-500 placeholder-slate-500" placeholder="Talep Başlığı Giriniz..." />
+                    <div id="modalCreatePoContainer" class="hidden mt-2">
+                         <input type="text" id="modalEditPo" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-red-500 placeholder-slate-500" placeholder="Müşteri PO No (Örn: PO-2024-001)" />
+                    </div>
                     <div class="flex items-center gap-3 mt-1">
+
                         <span class="text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full tracking-widest border border-red-500/20" id="modalId">@Model.Id</span>
+                        
+                        <!-- PO Display & Edit -->
+                        <div class="flex items-center gap-2 group/po relative">
+                            <span id="modalPropPoBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-700 text-slate-300 border border-slate-600 font-mono tracking-tight cursor-pointer hover:bg-slate-600 transition-colors" onclick="enablePoEdit()"></span>
+                            <div id="modalUpdatePoContainer" class="hidden absolute top-0 left-0 bg-slate-800 border border-slate-600 rounded-lg p-1 flex items-center gap-1 shadow-xl z-50 min-w-[150px]">
+                                <input type="text" id="modalUpdatePoInput" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-[10px] text-white w-24 focus:outline-none focus:border-red-500" placeholder="PO No">
+                                <button onclick="savePo()" class="p-1 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"><i class="bi bi-check"></i></button>
+                                <button onclick="cancelPoEdit()" class="p-1 text-slate-400 hover:text-white transition-colors"><i class="bi bi-x"></i></button>
+                            </div>
+                        </div>
+
                         <span class="w-1 h-1 bg-slate-600 rounded-full"></span>
                         <p class="text-[10px] font-normal text-slate-400 tracking-widest">Geliştirme Talebi</p>
                     </div>
                 </div>
             </div>
             <div class="flex items-center gap-4">
-                <button onclick="saveModalChanges()" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-[11px] font-normal tracking-widest rounded-xl shadow-lg shadow-red-900/20 transition-all hover:-translate-y-0.5 active:scale-95 normal-case">
+                <button id="btnSave" onclick="saveModalChanges()" class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white text-[11px] font-normal tracking-widest rounded-xl shadow-lg shadow-red-900/20 transition-all hover:-translate-y-0.5 active:scale-95 normal-case">
                     Değişiklikleri Kaydet
+                </button>
+                <button id="btnCreate" onclick="submitCreateRequest()" class="hidden px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-normal tracking-widest rounded-xl shadow-lg shadow-emerald-900/20 transition-all hover:-translate-y-0.5 active:scale-95 normal-case">
+                    Talep Oluştur
                 </button>
                 <button onclick="closeModal()" class="p-2 hover:bg-white/5 rounded-xl transition-colors">
                     <i class="bi bi-x-lg text-slate-400 text-xl"></i>
@@ -114,6 +133,21 @@
                                 <div class="flex flex-col">
                                     <p class="text-[10px] font-normal text-red-400 tracking-[0.2em] mb-1">Talep Sorumlusu</p>
                                     <h4 class="text-base font-normal text-white" id="modalPropAssignedTo">@Model.AssignedTo</h4>
+                                    
+                                    <!-- User Multi-Select -->
+                                    <div id="modalEditAssigneesContainer" class="hidden relative w-full max-w-sm mt-1">
+                                         <div class="flex flex-wrap gap-2 p-2 bg-slate-800 border border-slate-700 rounded-lg min-h-[42px] cursor-text" onclick="focusUserSearch()">
+                                             <div id="selectedUsers" class="flex flex-wrap gap-2"></div>
+                                             <input type="text" id="userSearchInput" class="bg-transparent border-none outline-none text-white text-sm min-w-[100px] flex-1" placeholder="Kişi ara..." oninput="searchUsers(this.value)" />
+                                         </div>
+                                         <div id="userDropdown" class="hidden absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50">
+                                             <!-- Users injected here -->
+                                         </div>
+                                    </div>
+                                    
+                                    <p class="text-xs font-normal text-slate-400 mt-2 max-w-lg leading-relaxed" id="modalPropDescription">@Model.Description</p>
+                                    <textarea id="modalEditDescription" class="hidden w-full h-32 mt-2 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 placeholder-slate-500 resize-none" placeholder="Talep detaylarını ve beklentilerinizi buraya yazınız..."></textarea>
+                                    <p class="text-[10px] text-slate-500 mt-1" id="modalPropDate">@Model.Date</p>
                                 </div>
                             </div>
 
@@ -133,14 +167,16 @@
                         <div class="flex items-center justify-between bg-slate-700/30 p-6 rounded-3xl border border-white/5 mb-8">
                             <div class="flex items-center gap-8">
                                 <div>
-                                    <p class="text-[10px] font-normal text-blue-400 tracking-[0.2em] mb-1">Kişi/Gün Efor</p>
+                                    <p class="text-[10px] font-normal text-blue-400 tracking-[0.2em] mb-1">Kişi/Gün</p>
                                     <h4 class="text-lg font-normal text-white" id="modalPropEffort">@Model.Effort</h4>
+                                    <input type="number" id="modalEditEffort" class="hidden w-24 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-red-500 placeholder-slate-500" placeholder="0" oninput="calculateCost()" />
                                 </div>
                             </div>
                             <div class="flex items-center gap-8">
                                 <div class="text-right">
                                     <p class="text-[10px] font-normal text-emerald-400 tracking-[0.2em] mb-1">Geliştirme Tutarı</p>
                                     <h4 class="text-lg font-normal text-white" id="modalPropCost">@Model.Cost</h4>
+                                    <input type="text" id="modalEditCost" class="hidden w-32 bg-slate-800/50 border border-slate-700 rounded-lg px-2 py-1 text-emerald-400 text-sm focus:outline-none cursor-not-allowed" placeholder="0 TL" readonly />
                                 </div>
                             </div>
                         </div>
@@ -174,10 +210,19 @@
                             <div class="p-2 bg-slate-800 rounded-xl"><i class="bi bi-paperclip text-orange-400"></i></div>
                             Dosyalar
                         </h3>
-                        <div class="border-2 border-dashed border-slate-700/50 rounded-3xl p-16 text-center hover:border-red-500/50 transition-all cursor-pointer group">
+                        <div id="dropZone" class="border-2 border-dashed border-slate-700/50 rounded-3xl p-12 text-center hover:border-red-500/50 hover:bg-red-500/5 transition-all cursor-pointer group relative">
+                            <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple />
                             <i class="bi bi-cloud-arrow-up text-5xl text-slate-600 group-hover:text-red-500 transition-colors mb-4 block"></i>
                             <p class="text-sm font-normal text-white tracking-widest">Dosya Yükle</p>
-                            <p class="text-xs text-slate-500 mt-2">Sürükleyip bırakın veya göz atın</p>
+                            <p class="text-xs text-slate-500 mt-2">Sürükleyip bırakın veya tıklayın</p>
+                        </div>
+
+                        <div id="filesList" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8">
+                            <!-- Files will be rendered here -->
+                             <div class="col-span-full py-10 text-center border-2 border-dashed border-slate-700/30 rounded-3xl">
+                                <i class="bi bi-file-earmark-text text-4xl text-slate-700 mb-2 block"></i>
+                                <p class="text-[10px] font-normal text-slate-600 tracking-widest">Henüz dosya yüklenmemiş</p>
+                            </div>
                         </div>
                     </div>
 
@@ -191,16 +236,16 @@
                         <!-- Planned Dates Info Banner -->
                         <div class="bg-indigo-500/5 border border-indigo-500/10 rounded-2xl p-5">
                             <div class="flex items-center gap-4">
-                                <div class="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                                    <i class="bi bi-calendar-event text-indigo-400 text-lg"></i>
+                                <div class="w-10 h-10 rounded-xl bg-slate-500/10 flex items-center justify-center">
+                                    <i class="bi bi-calendar-event text-slate-400 text-lg"></i>
                                 </div>
                                 <div class="flex-1 grid grid-cols-2 gap-8">
                                     <div>
-                                        <p class="text-[10px] font-normal text-indigo-300/70 tracking-widest mb-1.5">🎯 Hedef UAT Tarihi</p>
+                                        <p class="text-[10px] font-normal text-slate-300/70 tracking-widest mb-1.5">🎯 Hedef UAT Tarihi</p>
                                         <p class="text-base font-semibold text-white" id="modalTimelineTargetUAT">@Model.PlanlananPyuat</p>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-normal text-indigo-300/70 tracking-widest mb-1.5">🚀 Hedef Canlı Geçiş</p>
+                                        <p class="text-[10px] font-normal text-slate-300/70 tracking-widest mb-1.5">🚀 Hedef Canlı Geçiş</p>
                                         <p class="text-base font-semibold text-white" id="modalTimelineTargetGoLive">@Model.PlanlananCanliTeslim</p>
                                     </div>
                                 </div>
@@ -214,30 +259,30 @@
                             
                             <div class="space-y-8">
                                 <!-- 1. Opening (LEFT - Univera) -->
-                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]">
+                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]" id="timeline-step-opening">
                                     <!-- Centered Dot (Absolute to this container) -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-emerald-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                                        <i class="bi bi-check text-emerald-500 text-xs font-bold"></i>
+                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-red-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                                        <i class="bi bi-check text-red-500 text-xs font-bold"></i>
                                     </div>
                                     <!-- Connector Line to Left -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-full w-[calc(50%-1rem)] h-px bg-gradient-to-l from-emerald-500/30 to-transparent"></div>
+                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-full w-[calc(50%-1rem)] h-px bg-gradient-to-l from-red-500/30 to-transparent"></div>
                                     
                                     <div class="text-right pr-6 h-full flex items-center justify-end">
-                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-emerald-500/10 hover:border-emerald-500/30 transition-all duration-300">
+                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all duration-300 group">
                                             <div class="relative">
                                                 <div class="flex items-center justify-end gap-3 mb-3">
                                                     <h4 class="text-sm font-normal text-white tracking-wide">Madde Açılışı</h4>
-                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">1</span>
+                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold">1</span>
                                                 </div>
-                                                <div class="flex items-center justify-end gap-3 mb-2">
-                                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider">
+                                                <div class="flex items-center justify-end gap-3 mb-2" id="timeline-status-container-opening">
+                                                    <span class="px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/10 text-red-400 text-[10px] font-normal tracking-wider">
                                                         Tamamlandı
                                                     </span>
                                                 </div>
                                                 <div class="flex items-center justify-end gap-2 text-slate-400">
                                                     <p class="text-xs" id="modalTimelineOpenedBy">@Model.AssignedTo tarafından</p>
-                                                    <div class="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 text-[9px] font-bold">
-                                                        YÖ
+                                                    <div class="w-5 h-5 rounded-full bg-slate-700 flex items-center justify-center text-slate-300 text-[9px] font-bold" id="modalTimelineOpenerAvatarText">
+                                                        A
                                                     </div>
                                                 </div>
                                                 <p class="text-xs font-semibold text-white mt-2 text-right" id="modalTimelineOpening">@Model.Date</p>
@@ -248,25 +293,25 @@
                                 </div>
                                 
                                 <!-- 2. Analysis Approval (RIGHT - Customer) -->
-                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]">
+                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]" id="timeline-step-analysis">
                                     <!-- Centered Dot (Absolute to this container) -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-emerald-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                                        <i class="bi bi-check text-emerald-500 text-xs font-bold"></i>
+                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-red-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                                        <i class="bi bi-check text-red-500 text-xs font-bold"></i>
                                     </div>
                                     <!-- Connector Line to Right -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 w-[calc(50%-1rem)] h-px bg-gradient-to-r from-emerald-500/30 to-transparent"></div>
+                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 w-[calc(50%-1rem)] h-px bg-gradient-to-r from-red-500/30 to-transparent"></div>
                                     
                                     <div class="h-full"></div>
                                     <div class="pl-6 h-full flex items-center">
-                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-emerald-500/10 hover:border-emerald-500/30 transition-all duration-300">
+                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all duration-300 group">
                                             <div class="relative">
                                                 <div class="flex items-center gap-3 mb-3">
-                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">2</span>
+                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold">2</span>
                                                     <h4 class="text-sm font-normal text-white tracking-wide">Analiz Onayı</h4>
                                                 </div>
-                                                <div class="flex items-center gap-3 mb-2">
-                                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider">
-                                                        Onaylandı
+                                                <div class="flex items-center gap-3 mb-2" id="timeline-status-container-analysis">
+                                                    <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider">
+                                                        <i class="bi bi-check-lg"></i> Onaylandı
                                                     </span>
                                                 </div>
                                                 <p class="text-xs text-slate-400">Müşteri analiz onayı alındı</p>
@@ -277,24 +322,24 @@
                                 </div>
                                 
                                 <!-- 3. Budget Approval (LEFT - Customer) -->
-                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]">
+                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]" id="timeline-step-budget">
                                     <!-- Centered Dot (Absolute to this container) -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-emerald-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(16,185,129,0.3)]">
-                                        <i class="bi bi-check text-emerald-500 text-xs font-bold"></i>
+                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-red-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                                        <i class="bi bi-check text-red-500 text-xs font-bold"></i>
                                     </div>
                                     <!-- Connector Line to Left -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-full w-[calc(50%-1rem)] h-px bg-gradient-to-l from-emerald-500/30 to-transparent"></div>
+                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 -translate-x-full w-[calc(50%-1rem)] h-px bg-gradient-to-l from-red-500/30 to-transparent"></div>
                                     
                                     <div class="text-right pr-6 h-full flex items-center justify-end">
-                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-emerald-500/10 hover:border-emerald-500/30 transition-all duration-300">
+                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all duration-300 group">
                                             <div class="relative">
                                                 <div class="flex items-center justify-end gap-3 mb-3">
                                                     <h4 class="text-sm font-normal text-white tracking-wide">Bütçe Onayı</h4>
-                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">3</span>
+                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold">3</span>
                                                 </div>
-                                                <div class="flex items-center justify-end gap-3 mb-2">
-                                                    <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider">
-                                                        Onaylandı
+                                                <div class="flex items-center justify-end gap-3 mb-2" id="timeline-status-container-budget">
+                                                    <span class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider">
+                                                        <i class="bi bi-check-lg"></i> Onaylandı
                                                     </span>
                                                 </div>
                                                 <p class="text-xs text-slate-400 text-right">Müşteri bütçe onayı alındı</p>
@@ -305,24 +350,24 @@
                                 </div>
                                 
                                 <!-- 4. Development (RIGHT - Univera) -->
-                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]">
+                                <div class="relative grid grid-cols-2 gap-0 items-center min-h-[120px]" id="timeline-step-development">
                                     <!-- Centered Dot (Absolute to this container) -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-orange-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(249,115,22,0.3)]">
-                                        <i class="bi bi-arrow-repeat text-orange-500 text-xs animate-spin" style="animation-duration: 3s;"></i>
+                                    <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-900 border-2 border-red-500 flex items-center justify-center z-10 shadow-[0_0_10px_rgba(239,68,68,0.3)]">
+                                        <i class="bi bi-arrow-repeat text-red-500 text-xs animate-spin" style="animation-duration: 3s;"></i>
                                     </div>
                                     <!-- Connector Line to Right -->
-                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 w-[calc(50%-1rem)] h-px bg-gradient-to-r from-orange-500/30 to-transparent"></div>
+                                    <div class="absolute left-1/2 top-1/2 -translate-y-1/2 w-[calc(50%-1rem)] h-px bg-gradient-to-r from-red-500/30 to-transparent"></div>
                                     
                                     <div class="h-full"></div>
                                     <div class="pl-6 h-full flex items-center">
-                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-orange-500/10 hover:border-orange-500/30 transition-all duration-300">
+                                        <div class="inline-block relative bg-slate-800/30 p-5 rounded-2xl border border-red-500/10 hover:border-red-500/30 transition-all duration-300 group">
                                             <div class="relative">
                                                 <div class="flex items-center gap-3 mb-3">
-                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-orange-500/10 text-orange-400 text-[10px] font-bold">4</span>
+                                                    <span class="flex items-center justify-center w-5 h-5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-bold">4</span>
                                                     <h4 class="text-sm font-normal text-white tracking-wide">Geliştirme Süreci</h4>
                                                 </div>
-                                                <div class="flex items-center gap-3 mb-2">
-                                                    <span class="px-2.5 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/10 text-orange-400 text-[10px] font-normal tracking-wider">
+                                                <div class="flex items-center gap-3 mb-2" id="timeline-status-container-development">
+                                                    <span class="px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/10 text-red-400 text-[10px] font-normal tracking-wider">
                                                         Devam Ediyor
                                                     </span>
                                                 </div>
@@ -373,6 +418,7 @@
 
     function openModernModal(request) {
         currentModalRequest = JSON.parse(JSON.stringify(request)); // Deep clone
+        resetModalToViewMode();
         console.log("Opening Modal for:", currentModalRequest);
         const modal = document.getElementById('requestModal');
         
@@ -383,11 +429,34 @@
         document.getElementById('modalProgressBar').style.width = (currentModalRequest.progress || 0) + '%';
         updateProgressBarVisuals(currentModalRequest.progress || 0);
         document.getElementById('modalPropAssignedTo').innerText = currentModalRequest.assignedTo || "Atanmamış";
-        document.getElementById('modalAssigneeAvatar').innerText = currentModalRequest.assignedTo ? currentModalRequest.assignedTo.charAt(0) : 'A';
+        document.getElementById('modalAssigneeAvatar').innerText = getInitials(currentModalRequest.assignedTo);
+        document.getElementById('modalTimelineOpenerAvatarText').innerText = getInitials(currentModalRequest.assignedTo);
+        document.getElementById('modalPropDescription').innerText = currentModalRequest.description || "Açıklama yok.";
+        document.getElementById('modalPropDate').innerText = currentModalRequest.date || "-";
+
+        // Inject Avatar into Active Status
+        injectTimelineAvatar(currentModalRequest.status, currentModalRequest.assignedTo);
 
         // Populate Effort & Cost
-        document.getElementById('modalPropEffort').innerText = currentModalRequest.effort || "-";
+        document.getElementById('modalPropEffort').innerText = (currentModalRequest.effort || "-").replace("K/G", "K/ Gün");
+        // Populate Effort & Cost
+        document.getElementById('modalPropEffort').innerText = (currentModalRequest.effort || "-").replace("K/G", "K/ Gün");
         document.getElementById('modalPropCost').innerText = currentModalRequest.cost || "-";
+        
+        // Show PO Logic
+        const poBadge = document.getElementById('modalPropPoBadge');
+        const poVal = currentModalRequest.po;
+        
+        if (poVal && poVal !== '-' && poVal.trim() !== '') {
+            poBadge.textContent = poVal;
+            poBadge.classList.remove('hidden', 'border-dashed', 'text-slate-500', 'bg-transparent');
+            poBadge.classList.add('bg-slate-700', 'text-slate-300', 'border-slate-600');
+        } else {
+            // Empty State (Editable)
+            poBadge.innerHTML = '<i class="bi bi-plus text-[9px]"></i> PO Ekle';
+            poBadge.classList.remove('hidden', 'bg-slate-700', 'text-slate-300', 'border-slate-600');
+            poBadge.classList.add('border-dashed', 'border-slate-600', 'text-slate-500', 'bg-transparent');
+        }
 
         // Populate Timeline Fields
         document.getElementById('modalTimelineTargetUAT').innerText = currentModalRequest.planlananPyuat || "-";
@@ -408,12 +477,377 @@
 
         renderStepper();
         renderActionButtons();
+        renderActionButtons();
         switchTab('details');
         renderHistory();
         renderComments();
+        renderFiles();
+        renderStepper();
+        renderTimelineStates(); // New function call
+        renderActionButtons();
+        switchTab('details');
+        renderHistory();
+        renderComments();
+        renderFiles();
+        initFileUpload();
 
         modal.classList.remove('hidden');
         document.body.style.overflow = 'hidden';
+    }
+
+    function openCreateModal() {
+        try {
+        const modal = document.getElementById('requestModal');
+        
+        // Setup Create Mode
+        document.getElementById('modalTitle').classList.add('hidden');
+        document.getElementById('modalEditTitle').classList.remove('hidden');
+        document.getElementById('modalEditTitle').value = '';
+
+        document.getElementById('modalPropDescription').classList.add('hidden');
+        document.getElementById('modalEditDescription').classList.remove('hidden');
+        document.getElementById('modalEditDescription').value = '';
+        
+        // Show Effort & Cost Inputs
+        document.getElementById('modalPropEffort').classList.add('hidden');
+        document.getElementById('modalEditEffort').classList.remove('hidden');
+        document.getElementById('modalEditEffort').value = '';
+        
+        document.getElementById('modalPropCost').classList.add('hidden');
+        document.getElementById('modalEditCost').classList.remove('hidden');
+        document.getElementById('modalEditCost').classList.remove('hidden');
+        document.getElementById('modalEditCost').value = '0 TL';
+
+        // Show PO Input (Hidden by default, shown here)
+        document.getElementById('modalCreatePoContainer').classList.remove('hidden');
+        document.getElementById('modalEditPo').value = '';
+
+        // Hide View-Mode PO Elements
+        document.getElementById('modalPropPoBadge').classList.add('hidden');
+        document.getElementById('modalUpdatePoContainer').classList.add('hidden');
+
+        // Show Assignee Selector
+        document.getElementById('modalPropAssignedTo').classList.add('hidden');
+        document.getElementById('modalEditAssigneesContainer').classList.remove('hidden');
+        selectedUserIds = [];
+        renderSelectedUsers();
+
+        document.getElementById('btnSave').classList.add('hidden');
+        document.getElementById('btnCreate').classList.remove('hidden');
+
+        // Reset/Hide Props
+        document.getElementById('modalId').innerText = 'YENİ';
+        document.getElementById('modalPropProgress').innerText = '0';
+        document.getElementById('modalProgressBar').style.width = '0%';
+        document.getElementById('modalPropAssignedTo').innerText = '-';
+        document.getElementById('modalAssigneeAvatar').innerText = '+';
+        document.getElementById('modalPropDate').innerText = new Date().toLocaleDateString('tr-TR');
+        
+        // Hide Tabs Content but keep layout structure
+        // Disable Navigation Buttons
+        document.querySelectorAll('.modal-nav-btn').forEach(btn => {
+            if (btn.getAttribute('data-tab') !== 'details') {
+                btn.style.opacity = '0.3';
+                btn.style.pointerEvents = 'none';
+            } else {
+                btn.click(); // Switch to details
+            }
+        });
+
+        // Hide Timeline/Actions
+        document.getElementById('modalActionsContainer').innerHTML = '';
+        
+        if (typeof renderStepperForCreate === 'function') {
+            renderStepperForCreate();
+        } else {
+             console.warn("renderStepperForCreate missing, using default stepper");
+             // Fallback or just ignore
+        }
+
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    } catch(e) {
+        console.error("Error opening create modal:", e);
+        alert("Bir hata oluştu: " + e.message);
+    }
+    }
+
+    function renderStepperForCreate() {
+        document.getElementById('modalProgressLine').style.width = '0%';
+        
+        document.querySelectorAll('.stepper-dot').forEach(dot => {
+            const idx = parseInt(dot.getAttribute('data-index'));
+            const dotStepId = dot.getAttribute('data-step-id');
+            const label = document.querySelector(`.stepper-label[data-step-id="${dotStepId}"]`);
+            
+            // Reset to default
+            dot.classList.remove('border-red-500', 'bg-red-500', 'text-white', 'scale-110', 'shadow-[0_0_10px_rgba(239,68,68,0.5)]');
+            dot.classList.add('border-slate-600', 'bg-slate-800', 'text-slate-500');
+             if (label) {
+                label.classList.remove('text-red-500');
+                label.classList.add('text-slate-500');
+            }
+
+            if (idx === 0) { // First step active
+                 dot.classList.add('border-red-500', 'text-red-500', 'scale-110', 'shadow-[0_0_10px_rgba(239,68,68,0.5)]');
+                 dot.classList.remove('text-slate-500', 'border-slate-600');
+                 dot.innerHTML = '1';
+                 if (label) {
+                     label.classList.add('text-red-500');
+                     label.classList.remove('text-slate-500');
+                 }
+            } else {
+                 dot.innerHTML = (idx + 1).toString();
+            }
+        });
+    }
+
+    function resetModalToViewMode() {
+        document.getElementById('modalTitle').classList.remove('hidden');
+        document.getElementById('modalEditTitle').classList.add('hidden');
+
+        document.getElementById('modalPropDescription').classList.remove('hidden');
+        document.getElementById('modalEditDescription').classList.add('hidden');
+
+        document.getElementById('modalPropEffort').classList.remove('hidden');
+        document.getElementById('modalEditEffort').classList.add('hidden');
+
+         document.getElementById('modalPropCost').classList.remove('hidden');
+        document.getElementById('modalEditCost').classList.add('hidden');
+
+        document.getElementById('modalPropAssignedTo').classList.remove('hidden');
+        document.getElementById('modalPropAssignedTo').classList.remove('hidden');
+        document.getElementById('modalEditAssigneesContainer').classList.add('hidden');
+
+        document.getElementById('modalCreatePoContainer').classList.add('hidden');
+        document.getElementById('modalPropPoBadge').classList.add('hidden');
+
+        document.getElementById('btnSave').classList.remove('hidden');
+        document.getElementById('btnCreate').classList.add('hidden');
+
+        document.querySelectorAll('.modal-nav-btn').forEach(btn => {
+            btn.style.opacity = '1';
+            btn.style.pointerEvents = 'auto';
+        });
+    }
+
+    // --- Create Logic Extensions ---
+    
+    function calculateCost() {
+        const effort = parseFloat(document.getElementById('modalEditEffort').value) || 0;
+        const rate = 22500;
+        const cost = effort * rate;
+        document.getElementById('modalEditCost').value = cost.toLocaleString('tr-TR') + ' TL';
+    }
+
+    let selectedUserIds = []; // Stores IDs of selected users
+    let availableUsers = []; // Cache for users
+
+    function focusUserSearch() {
+        document.getElementById('userSearchInput').focus();
+        document.getElementById('userDropdown').classList.remove('hidden');
+        if(availableUsers.length === 0) searchUsers('');
+    }
+    
+    // Close dropdown on click outside
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('modalEditAssigneesContainer');
+        if (container && !container.contains(e.target)) {
+            document.getElementById('userDropdown').classList.add('hidden');
+        }
+    });
+
+    function searchUsers(query) {
+        fetch(`/Talepler/GetUsers?q=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(users => {
+            availableUsers = users;
+            renderUserDropdown(users);
+        });
+    }
+
+    function renderUserDropdown(users) {
+        const dropdown = document.getElementById('userDropdown');
+        dropdown.innerHTML = '';
+        if (users.length === 0) {
+            dropdown.innerHTML = '<div class="p-2 text-slate-500 text-xs">Kullanıcı bulunamadı</div>';
+            return;
+        }
+
+        users.forEach(user => {
+            if (selectedUserIds.some(u => u.id === user.id)) return; // Skip selected
+
+            const div = document.createElement('div');
+            div.className = 'p-2 hover:bg-slate-700 cursor-pointer flex items-center gap-2 text-sm text-slate-300';
+            div.innerHTML = `
+                <div class="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[10px] text-white">
+                    ${getInitials(user.name)}
+                </div>
+                <span>${user.name}</span>
+            `;
+            div.onclick = (e) => {
+                e.stopPropagation();
+                selectUser(user);
+            };
+            dropdown.appendChild(div);
+        });
+    }
+
+
+
+    function selectUser(user) {
+        if (selectedUserIds.length >= 1) return; // Prevent multiple selection
+        selectedUserIds.push(user);
+        renderSelectedUsers();
+        document.getElementById('userSearchInput').value = '';
+        document.getElementById('userDropdown').classList.add('hidden');
+        
+        // Hide input after selection
+        document.getElementById('userSearchInput').classList.add('hidden');
+    }
+
+    function removeUser(userId) {
+        selectedUserIds = selectedUserIds.filter(u => u.id !== userId);
+        renderSelectedUsers();
+        
+        // Show input again
+        document.getElementById('userSearchInput').classList.remove('hidden');
+        document.getElementById('userSearchInput').focus();
+    }
+
+    function renderSelectedUsers() {
+        const container = document.getElementById('selectedUsers');
+        container.innerHTML = '';
+        selectedUserIds.forEach(user => {
+            const tag = document.createElement('div');
+            tag.className = 'flex items-center gap-1 bg-slate-700 text-white text-xs px-2 py-1 rounded-md';
+            tag.innerHTML = `
+                <span>${user.name}</span>
+                <i class="bi bi-x cursor-pointer hover:text-red-400" onclick="removeUser(${user.id})"></i>
+            `;
+            container.appendChild(tag);
+        });
+    }
+
+    function submitCreateRequest() {
+        const title = document.getElementById('modalEditTitle').value;
+        const desc = document.getElementById('modalEditDescription').value;
+        const effort = document.getElementById('modalEditEffort').value;
+        const assignees = selectedUserIds.map(u => u.id).join(',');
+
+        if (!title) {
+            alert('Lütfen bir başlık giriniz.');
+            return;
+        }
+
+        const btn = document.getElementById('btnCreate');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Oluşturuluyor...';
+
+        fetch('/Talepler/Create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `title=${encodeURIComponent(title)}&description=${encodeURIComponent(desc)}&effort=${effort}&assignees=${assignees}`
+        })
+        .then(res => res.json())
+        .then(data => {
+             if (data.success) {
+                 closeModal();
+                 // Refresh page to show new item
+                 window.location.reload();
+             } else {
+                 alert('Hata: ' + data.message);
+                 btn.disabled = false;
+                 btn.innerHTML = originalText;
+             }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Bir hata oluştu.');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        });
+    }
+
+    function renderTimelineStates() {
+        const statusMap = {
+            'Analiz': 1,
+            'Bütçe Onayı': 2,
+            'Geliştirme': 3,
+            'Proje Testi': 4,
+            'Müşteri UAT': 5,
+            'Canlıya Geçiş': 6
+        };
+        
+        // Map current status to step index
+        const currentStatus = currentModalRequest.status;
+        const currentIndex = statusMap[currentStatus] || 1; // Default to 1 (Analiz/Start)
+
+        // Helper to update step visual
+        const updateStep = (id, stepIdx) => {
+            const container = document.getElementById(id);
+            if (!container) return;
+
+            const dot = container.querySelector('.timeline-dot');
+            const dotLarge = container.querySelector('.timeline-dot-large');
+            const line = container.querySelector('.timeline-line');
+            const card = container.querySelector('.timeline-card');
+            const number = container.querySelector('.timeline-number');
+            const statusBadge = container.querySelector('.timeline-status span');
+            const icon = container.querySelector('i');
+
+            // Reset
+            if (card) { card.classList.add('opacity-50'); card.classList.remove('border-red-500/30', 'bg-red-500/5', 'border-emerald-500/30', 'bg-emerald-500/5'); }
+            if (dot) { dot.classList.replace('border-red-500', 'border-slate-700'); dot.classList.replace('bg-red-500', 'bg-slate-900'); }
+            if (line) { line.classList.replace('from-red-500/30', 'from-slate-700/50'); }
+            if (icon) { icon.classList.replace('text-white', 'text-slate-500'); icon.classList.replace('text-red-500', 'text-slate-500'); icon.classList.replace('text-emerald-500', 'text-slate-500'); }
+
+            if (stepIdx < currentIndex) {
+                // Completed
+                if (card) { card.classList.remove('opacity-50'); }
+                if (dot) { dot.classList.replace('border-slate-700', 'border-red-500'); dot.classList.replace('bg-slate-900', 'bg-red-500'); }
+                if (line) { line.classList.replace('from-slate-700/50', 'from-red-500/30'); }
+                if (icon) { icon.classList.replace('text-slate-500', 'text-white'); icon.className = "bi bi-check-lg text-white text-xs font-bold"; }
+                if (number) { number.classList.replace('bg-slate-700', 'bg-red-500/10'); number.classList.replace('text-slate-400', 'text-red-400'); number.innerHTML = '<i class="bi bi-check"></i>'; }
+                if (statusBadge) {
+                   statusBadge.innerHTML = '<i class="bi bi-check-lg"></i> Tamamlandı';
+                   statusBadge.className = 'flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/10 text-emerald-400 text-[10px] font-normal tracking-wider';
+                }
+            } else if (stepIdx === currentIndex) {
+                // Active
+                if (card) { card.classList.remove('opacity-50'); card.classList.add('border-red-500/30', 'bg-red-500/5'); }
+                if (dot) { dot.classList.replace('border-slate-700', 'border-red-500'); }
+                if (line) { line.classList.replace('from-slate-700/50', 'from-red-500/30'); }
+                if (icon) { icon.classList.replace('text-slate-500', 'text-red-500'); icon.classList.add('animate-spin'); } // Spin only for active if needed, usually arrow-repeat
+                
+                // Specific icons for active state
+                if(stepIdx === 4) icon.className = "bi bi-bug text-red-500 text-xs";
+                if(stepIdx === 5) icon.className = "bi bi-person-check text-red-500 text-xs";
+                if(stepIdx === 6) icon.className = "bi bi-rocket-takeoff text-red-500 text-xl"; // Large dot has larger icon
+
+                if (dotLarge) { dotLarge.classList.replace('border-slate-700', 'border-red-500'); dotLarge.classList.add('shadow-[0_0_20px_rgba(239,68,68,0.4)]'); }
+
+                if (number) { number.classList.replace('bg-slate-700', 'bg-red-500'); number.classList.replace('text-slate-400', 'text-white'); number.innerHTML = stepIdx; }
+                if (statusBadge) {
+                   statusBadge.innerHTML = 'Devam Ediyor';
+                   statusBadge.className = 'px-2.5 py-0.5 rounded-full bg-red-500/10 border border-red-500/10 text-red-400 text-[10px] font-normal tracking-wider';
+                }
+            } else {
+                // Pending
+                // Default state is fine
+            }
+        };
+
+        // Apply to new steps (Analysis, Budget, Dev are static/partially dynamic in HTML, but we can override or just handle the new ones)
+        // Ideally we should make ALL steps dynamic to be consistent, but for now let's focus on the new ones and Dev's dynamic state
+        
+        // Development Step (Index 3)
+        // We need to query this one carefully as it exists in HTML
+        updateStep('timeline-step-development', 3);
+        updateStep('timeline-step-test', 4);
+        updateStep('timeline-step-uat', 5);
+        updateStep('timeline-step-golive', 6);
     }
 
     function renderStepper() {
@@ -790,6 +1224,190 @@
 
         bar.style.boxShadow = `0 0 15px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.3)`;
     }
+
+    // File Upload JS
+    function initFileUpload() {
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        if (!dropZone || !fileInput) return;
+
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, e => {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('bg-red-500/10', 'border-red-500'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('bg-red-500/10', 'border-red-500'), false);
+        });
+
+        dropZone.addEventListener('drop', e => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }, false);
+
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+    }
+
+    function handleFiles(files) {
+        ([...files]).forEach(uploadFile);
+    }
+
+    function uploadFile(file) {
+        const url = '/Talepler/UploadFile';
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('id', currentModalRequest.id);
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                renderFiles();
+            } else {
+                alert('Dosya yüklenemedi: ' + data.message);
+            }
+        })
+        .catch(() => alert('Yükleme sırasında hata oluştu.'));
+    }
+
+    function renderFiles() {
+        const container = document.getElementById('filesList');
+        if (!container) return;
+
+        fetch('/Talepler/GetFiles?id=' + encodeURIComponent(currentModalRequest.id))
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                if (data.files.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full py-10 text-center border-2 border-dashed border-slate-700/30 rounded-3xl">
+                            <i class="bi bi-file-earmark-text text-4xl text-slate-700 mb-2 block"></i>
+                            <p class="text-[10px] font-normal text-slate-600 tracking-widest">Henüz dosya yüklenmemiş</p>
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = data.files.map(file => `
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-white/5 group hover:bg-slate-800 transition-all">
+                        <a href="/Talepler/DownloadFile?id=${file.lngkod}" class="flex items-center gap-4 overflow-hidden flex-1 group/file">
+                            <div class="w-10 h-10 shrink-0 rounded-xl bg-slate-700 flex items-center justify-center text-slate-400 group-hover/file:bg-red-500/20 group-hover/file:text-red-400 transition-all">
+                                <i class="bi bi-file-earmark-arrow-down text-lg"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-medium text-white truncate group-hover/file:text-red-400 transition-colors">${file.fileName}</p>
+                                <p class="text-[9px] text-slate-500 mt-1">${file.date}</p>
+                            </div>
+                        </a>
+                    </div>
+                `).join('');
+            }
+        });
+    }
+
+    function injectTimelineAvatar(status, assignedTo) {
+        // Clear existing avatars
+        document.querySelectorAll('.timeline-avatar-injection').forEach(el => el.remove());
+
+        if (!status) return;
+        
+        // Map status to container ID
+        const statusMap = {
+            'Analiz': 'timeline-status-container-analysis',
+            'Bütçe Onayı': 'timeline-status-container-budget',
+            'Geliştirme': 'timeline-status-container-development',
+            // Default mappings for simplicity (Modify as needed)
+            'Proje Testi': 'timeline-status-container-development',
+            'Müşteri UAT': 'timeline-status-container-development',
+            'Canlıya Geçiş': 'timeline-status-container-development'
+        };
+        
+        // Special Case: "Madde Açılışı" is usually always Step 1, but we might want to show it there if status is brand new?
+        // Usually we track current status.
+        
+        const containerId = statusMap[status] || statusMap[status.replace('IN ', '')] || 'timeline-status-container-analysis';
+        const container = document.getElementById(containerId);
+        
+        if (container) {
+            const initials = getInitials(assignedTo);
+            const avatarHtml = `
+                <div class="timeline-avatar-injection w-6 h-6 rounded-full bg-slate-700 border border-slate-500 flex items-center justify-center text-[10px] text-white font-bold ml-2 shadow-lg animate-in fade-in zoom-in duration-300">
+                    ${initials}
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', avatarHtml);
+        }
+    }
+
+    function getInitials(name) {
+        if (!name) return 'A';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        // First and Last name initials
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    }
+
+    // --- PO Edit Logic ---
+    function enablePoEdit() {
+        document.getElementById('modalPropPoBadge').classList.add('invisible');
+        const container = document.getElementById('modalUpdatePoContainer');
+        container.classList.remove('hidden');
+        
+        const currentVal = currentModalRequest.po === '-' ? '' : currentModalRequest.po;
+        const input = document.getElementById('modalUpdatePoInput');
+        input.value = currentVal;
+        input.focus();
+    }
+
+    function cancelPoEdit() {
+        document.getElementById('modalPropPoBadge').classList.remove('invisible');
+        document.getElementById('modalUpdatePoContainer').classList.add('hidden');
+    }
+
+    function savePo() {
+        const newVal = document.getElementById('modalUpdatePoInput').value.trim();
+        const id = currentModalRequest.id;
+
+        fetch('/Talepler/UpdatePo', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: `id=${encodeURIComponent(id)}&po=${encodeURIComponent(newVal)}`
+        })
+        .then(r => r.json())
+        .then(d => {
+            if(d.success) {
+                currentModalRequest.po = newVal || '-';
+                
+                // Refresh Badge
+                const poBadge = document.getElementById('modalPropPoBadge');
+                if (newVal) {
+                    poBadge.textContent = newVal;
+                    poBadge.classList.remove('border-dashed', 'text-slate-500', 'bg-transparent');
+                    poBadge.classList.add('bg-slate-700', 'text-slate-300', 'border-slate-600');
+                } else {
+                    poBadge.innerHTML = '<i class="bi bi-plus text-[9px]"></i> PO Ekle';
+                    poBadge.classList.remove('bg-slate-700', 'text-slate-300', 'border-slate-600');
+                    poBadge.classList.add('border-dashed', 'border-slate-600', 'text-slate-500', 'bg-transparent');
+                }
+                
+                cancelPoEdit();
+            } else {
+                alert('Hata: ' + d.message);
+            }
+        });
+    }
 </script>
 <style>
     .modal-nav-btn {
@@ -810,7 +1428,18 @@
         0% { transform: translateX(-100%); }
         100% { transform: translateX(100%); }
     }
+    }
     .animate-shimmer {
         animation: shimmer 2s infinite linear;
+    }
+    
+    /* Hide spin buttons for number input */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
     }
 </style>

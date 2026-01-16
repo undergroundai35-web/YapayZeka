@@ -41,6 +41,21 @@ namespace UniCP.DbData
                 entity.HasNoKey();
                 entity.ToView(null);
             });
+            modelBuilder.Entity<SSP_VARUNA_SIPARIS>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToView(null);
+            });
+            modelBuilder.Entity<SSP_VARUNA_SIPARIS_DETAY>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToView(null);
+            });
+             modelBuilder.Entity<SSP_VARUNA_CHART_DATA>(entity =>
+            {
+                entity.HasNoKey();
+                entity.ToView(null);
+            });
         }
     }
 }

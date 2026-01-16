@@ -25,4 +25,8 @@ public partial class TBL_KULLANICI
     public int? LNGKULLANICITIPI { get; set; }
 
     public int? LNGORTAKFIRMAKOD { get; set; }
+
+    [StringLength(256)]
+    [Unicode(false)]
+    public string? TXTEMAIL { get; set; }
 }

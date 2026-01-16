@@ -1,6 +1,7 @@
-@model IEnumerable<UniCP.Models.Finans.FinansItemVm>
+@model IEnumerable<UniCP.Models.MsK.SpModels.SSP_VARUNA_SIPARIS>
 @{
     ViewData["Title"] = "Finansal Özet";
+    ViewData["HidePageHeader"] = true;
     Layout = "~/Views/Shared/_LayoutMusteri.cshtml";
 }
 
@@ -12,77 +13,214 @@
             <p class="text-sm text-slate-400 font-medium">Hizmet bedelleri, faturalar ve finansal durumunuzu buradan yönetin.</p>
         </div>
         <div class="flex space-x-2">
-            <button class="px-4 py-2 bg-slate-800 border border-white/5 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-700 transition-all flex items-center space-x-2">
-                <i class="bi bi-download"></i>
-                <span>Ekstre İndir</span>
-            </button>
+            <!-- Filter Buttons -->
+            <div class="flex bg-slate-800/50 p-1 rounded-xl border border-white/5 space-x-1">
+                <a href="@Url.Action("Index", new { filter = "month" })" 
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all @(ViewBag.ActiveFilter == "month" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white hover:bg-white/5")">
+                    Aylık
+                </a>
+                <a href="@Url.Action("Index", new { filter = "3months" })" 
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all @(ViewBag.ActiveFilter == "3months" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white hover:bg-white/5")">
+                    3 Aylık
+                </a>
+                <a href="@Url.Action("Index", new { filter = "year" })" 
+                   class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all @(ViewBag.ActiveFilter == "year" ? "bg-blue-600 text-white shadow-lg shadow-blue-500/20" : "text-slate-400 hover:text-white hover:bg-white/5")">
+                    Yıllık
+                </a>
+            </div>
+
+            <!-- Custom Date Filter -->
+            <form method="get" action="@Url.Action("Index")" class="flex items-center space-x-1 bg-slate-800/50 p-1 rounded-xl border border-white/5">
+                <input type="date" name="startDate" value="@ViewBag.StartDate" class="bg-transparent border-0 text-white text-[10px] w-24 px-2 py-1 focus:ring-0" style="color-scheme: dark;" placeholder="Başlangıç">
+                <span class="text-slate-500">-</span>
+                <input type="date" name="endDate" value="@ViewBag.EndDate" class="bg-transparent border-0 text-white text-[10px] w-24 px-2 py-1 focus:ring-0" style="color-scheme: dark;" placeholder="Bitiş">
+                <button type="submit" class="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded-lg text-white transition-colors">
+                    <i class="bi bi-funnel-fill text-xs"></i>
+                </button>
+            </form>
+
+            <!-- Actions Dropdown -->
+            <div class="relative">
+                <button onclick="toggleActionMenu()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm font-bold text-white transition-all flex items-center space-x-2 shadow-lg shadow-indigo-600/20">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    <span>İşlemler</span>
+                    <i class="bi bi-chevron-down ml-1 text-indigo-200"></i>
+                </button>
+                
+                <!-- Dropdown Menu -->
+                <div id="actionMenu" class="hidden absolute right-0 top-full mt-2 w-56 bg-slate-800 rounded-xl shadow-2xl border border-slate-700 overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div class="p-1">
+                        <div class="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Finansal İşlemler</div>
+                        
+                        <a href="@Url.Action("ExportExcel", new { filter = ViewBag.ActiveFilter, startDate = ViewBag.StartDate, endDate = ViewBag.EndDate })" class="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors group">
+                            <span class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500/20 border border-emerald-500/20">
+                                <i class="bi bi-file-earmark-spreadsheet-fill"></i>
+                            </span>
+                            Ekstre İndir (Excel)
+                        </a>
+
+                        <a href="javascript:void(0)" onclick="alert('Ödeme modülü yakında eklenecek.')" class="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors group">
+                            <span class="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center group-hover:bg-blue-500/20 border border-blue-500/20">
+                                <i class="bi bi-credit-card-fill"></i>
+                            </span>
+                            Ödeme Yap
+                        </a>
+                        
+                        <a href="javascript:void(0)" onclick="sendReconciliation()" class="flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors group">
+                            <span class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:bg-amber-500/20 border border-amber-500/20">
+                                <i class="bi bi-envelope-paper-fill"></i>
+                            </span>
+                            Mutabakat Gönder
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Financial Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Onaylanan Bütçe</p>
-            <h3 class="text-3xl font-medium text-white">$45.000</h3>
-            <div class="mt-4 flex items-center text-[10px] text-emerald-400 font-bold">
-                <i class="bi bi-graph-up-arrow me-1"></i> %12 artış (geçen aya göre)
+    <!-- Stats & Chart Section -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Left: Stats Stack (4 cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            <!-- Total Amount Card -->
+            <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5 flex-1 flex flex-col justify-center">
+                <p class="text-xs font-bold text-slate-400 mb-2 tracking-widest">Toplam Tutar</p>
+                <h3 class="text-3xl font-medium text-white">@(((decimal)ViewBag.TotalFilteredAmount).ToString("C2"))</h3>
+                <div class="mt-4 flex items-center text-[10px] font-bold @((double)ViewBag.PercentageChange >= 0 ? "text-emerald-400" : "text-red-400")">
+                    <i class="bi @((double)ViewBag.PercentageChange >= 0 ? "bi-graph-up-arrow" : "bi-graph-down-arrow") me-1"></i> 
+                    %@Math.Abs((double)ViewBag.PercentageChange).ToString("N0") @((double)ViewBag.PercentageChange >= 0 ? "artış" : "azalış") (@ViewBag.ComparisonLabel)
+                </div>
+            </div>
+
+            <!-- Pending Payment Card -->
+            <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5 flex-1 flex flex-col justify-center">
+                <p class="text-xs font-bold text-slate-400 mb-2 tracking-widest">Ödeme Bekleyen</p>
+                <h3 class="text-3xl font-medium text-[#DD2F42]">@(((decimal)ViewBag.PendingPayment).ToString("C2"))</h3>
+                @if (ViewBag.OverdueCount > 0)
+                {
+                    <div class="mt-4 flex items-center text-[10px] text-red-400 font-bold">
+                        <i class="bi bi-exclamation-circle me-1"></i> @ViewBag.OverdueCount adet gecikmiş fatura
+                    </div>
+                }
+                else if (ViewBag.WaitingForMaturityCount > 0)
+                {
+                    <div class="mt-4 flex items-center text-[10px] text-blue-400 font-bold">
+                        <i class="bi bi-hourglass-split me-1"></i> @ViewBag.WaitingForMaturityCount adet vadesi gelmemiş fatura
+                    </div>
+                }
+                else
+                {
+                    <div class="mt-4 flex items-center text-[10px] text-emerald-400 font-bold">
+                        <i class="bi bi-check-circle me-1"></i> Ödeme bekleyen yok
+                    </div>
+                }
             </div>
         </div>
-        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Ödeme Bekleyen</p>
-            <h3 class="text-3xl font-medium text-[#DD2F42]">$12.450</h3>
-            <div class="mt-4 flex items-center text-[10px] text-red-400 font-bold">
-                <i class="bi bi-exclamation-circle me-1"></i> 3 adet gecikmiş fatura
-            </div>
-        </div>
-        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Gelecek Ödeme</p>
-            <h3 class="text-3xl font-medium text-white">$8.200</h3>
-            <div class="mt-4 flex items-center text-[10px] text-slate-400 font-bold">
-                <i class="bi bi-calendar-event me-1"></i> 15 Ocak 2025
-            </div>
-        </div>
-        <div class="glass-panel bg-slate-800/50 p-6 rounded-2xl shadow-sm border border-white/5">
-            <p class="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Kalan Kredi (Hizmet)</p>
-            <h3 class="text-3xl font-medium text-white">12 A/G</h3>
-            <div class="mt-4 flex items-center text-[10px] text-blue-400 font-bold">
-                <i class="bi bi-info-circle me-1"></i> Yıl sonuna kadar geçerli
-            </div>
+
+        <!-- Right: Enormous Product Group Chart (8 cols) -->
+        <div class="lg:col-span-8 glass-panel bg-slate-800/50 p-6 rounded-[2rem] shadow-sm border border-white/5 flex items-center justify-between relative overflow-hidden min-h-[350px]">
+             <!-- Left Side: Title & Legend -->
+             <div class="w-1/4 h-full flex flex-col border-r border-white/5 pr-6">
+                 <h4 class="text-lg font-medium text-white tracking-widest mb-6">Fatura Dağılımı</h4>
+                 <div class="space-y-3 overflow-y-auto custom-scrollbar flex-1" id="chartLegend">
+                     <!-- Legend populated by JS -->
+                 </div>
+             </div>
+
+             <!-- Right Side: Chart -->
+             <div class="w-3/4 h-full relative flex items-center justify-center pl-6">
+                @if (ViewBag.ChartData != null)
+                {
+                    <div class="relative w-full h-full">
+                         <canvas id="productGroupChart"></canvas>
+                         <!-- Center Text -->
+                         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                             <span class="text-xs text-slate-400 font-medium tracking-widest">TOPLAM</span>
+                             <span class="text-2xl font-black text-white">@(((decimal)ViewBag.TotalFilteredAmount).ToString("C0"))</span>
+                         </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center text-slate-500">
+                        <i class="bi bi-pie-chart text-4xl mb-2 block"></i>
+                        <span class="text-sm">Görüntülenecek veri bulunamadı</span>
+                    </div>
+                }
+             </div>
         </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <!-- Hizmet Bedelleri Table (8 cols) -->
-        <div class="lg:col-span-8 glass-panel bg-slate-800/50 rounded-[2rem] shadow-sm border border-white/5 overflow-hidden">
+        <!-- Sipariş Listesi (Full width) -->
+        <div class="lg:col-span-12 glass-panel bg-slate-800/50 rounded-[2rem] shadow-sm border border-white/5 overflow-hidden">
             <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-                <h4 class="text-sm font-medium text-white uppercase tracking-widest">Hizmet Birim Bedelleri</h4>
-                <span class="text-[10px] text-slate-500 font-bold italic">Univera Fiyat Listesi 2025 H1</span>
+                <h4 class="text-sm font-medium text-white tracking-widest">Sipariş Listesi</h4>
+                <span class="text-[10px] text-slate-500 font-bold italic">Varuna CRM</span>
             </div>
-            <div class="overflow-x-auto">
+            <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table class="w-full text-left">
                     <thead>
                         <tr class="bg-slate-800/50 border-b border-white/5">
-                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Hizmet Adı</th>
-                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Birim</th>
-                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Kategori</th>
-                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Açıklama</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Fatura No</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Müşteri</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Tarih</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Tutar</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Durum</th>
+                            <th class="px-6 py-3 text-[10px] font-black text-slate-400 tracking-widest">Detay</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-white/5">
-                        @foreach (var item in Model)
+                        @if (Model != null && Model.Any())
                         {
-                            <tr class="hover:bg-slate-700/50 transition-colors">
-                                <td class="px-6 py-4">
-                                    <span class="text-sm font-bold text-white">@item.StokAdi</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="text-xs font-bold text-slate-400 uppercase">@item.Birim</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="px-2 py-1 bg-blue-500/10 text-blue-400 text-[10px] font-bold rounded-lg border border-blue-500/20">@item.Kategori</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <p class="text-xs text-slate-500 line-clamp-1">@item.Aciklama</p>
+                            @foreach (var siparis in Model)
+                            {
+                                <tr class="hover:bg-slate-700/50 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <span class="text-[11px] text-white">@siparis.SerialNumber</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-[10px] text-slate-300">@siparis.AccountTitle</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-[10px] text-slate-400">@siparis.CreateOrderDate?.ToString("dd.MM.yyyy")</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <span class="text-[11px] font-bold text-emerald-400">@siparis.TotalAmountWithTax?.ToString("C2")</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        @{
+                                            var rawStatus = !string.IsNullOrEmpty(siparis.Durum) ? siparis.Durum : "Ödeme Bekleniyor";
+                                            var culture = new System.Globalization.CultureInfo("tr-TR");
+                                            var formattedStatus = culture.TextInfo.ToTitleCase(rawStatus.ToLower(culture));
+                                            
+                                            var colorClass = "bg-blue-500/10 text-blue-400 border-blue-500/20"; // Default (Bekliyor)
+                                            if (formattedStatus.Contains("Tahsil"))
+                                            {
+                                                colorClass = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"; // Tahsil (Close to blue)
+                                            }
+                                        }
+                                        <span class="px-2 py-1 @colorClass text-[9px] font-bold rounded-lg border">@formattedStatus</span>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <button onclick="viewOrderDetails('@siparis.OrderId')" class="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-all">
+                                            <i class="bi bi-eye"></i> Görüntüle
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="6" class="px-6 py-12 text-center">
+                                    <div class="flex flex-col items-center justify-center space-y-3">
+                                        <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center">
+                                            <i class="bi bi-cart-x text-3xl text-slate-600"></i>
+                                        </div>
+                                        <p class="text-slate-500 text-sm font-normal">Henüz sipariş bulunmuyor</p>
+                                    </div>
                                 </td>
                             </tr>
                         }
@@ -90,47 +228,253 @@
                 </table>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Recent Invoices (4 cols) -->
-        <div class="lg:col-span-4 glass-panel bg-slate-800/50 rounded-[2rem] shadow-sm border border-white/5 overflow-hidden">
-            <div class="px-6 py-4 border-b border-white/5">
-                <h4 class="text-sm font-medium text-white uppercase tracking-widest">Son Faturalar</h4>
-            </div>
-            <div class="p-4 space-y-3">
-                <div class="p-4 bg-slate-800/30 rounded-2xl border border-white/5 hover:border-blue-500/50 transition-all cursor-pointer group">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-black text-blue-400 uppercase">FT-2024-0012</span>
-                        <span class="text-[10px] text-slate-500 font-bold">12/12/2024</span>
-                    </div>
-                    <h5 class="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">Yazılım Bakım Bedeli</h5>
-                    <div class="flex items-center justify-between mt-3">
-                        <span class="text-lg font-medium text-white">$4.500</span>
-                        <span class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[9px] font-black rounded-lg uppercase border border-emerald-500/20">Ödendi</span>
-                    </div>
-                </div>
-
-                <div class="p-4 bg-slate-800/30 rounded-2xl border border-white/5 hover:border-[#DD2F42] transition-all cursor-pointer group">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-black text-[#DD2F42] uppercase">FT-2025-0001</span>
-                        <span class="text-[10px] text-slate-500 font-bold">02/01/2025</span>
-                    </div>
-                    <h5 class="text-sm font-bold text-white group-hover:text-[#DD2F42] transition-colors">Geliştirme Hizmeti (Aralık)</h5>
-                    <div class="flex items-center justify-between mt-3">
-                        <span class="text-lg font-medium text-white">$8.200</span>
-                        <span class="px-2 py-0.5 bg-red-500/10 text-red-500 text-[9px] font-black rounded-lg uppercase border border-red-500/20">Ödeme Bekliyor</span>
-                    </div>
-                </div>
-                
-                 <div class="p-4 bg-slate-800/30 rounded-2xl border border-white/5 hover:border-white/10 transition-all cursor-pointer group">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] font-black text-slate-400 uppercase hidden">FT-2025-0001</span>
-                        <span class="text-[10px] text-slate-600 font-bold w-full text-center">Tümünü Gör</span>
-                    </div>
-                    <div class="flex items-center justify-center py-2">
-                         <i class="bi bi-arrow-right-circle text-2xl text-slate-500 group-hover:text-white transition-colors"></i>
-                    </div>
-                </div>
-            </div>
+<!-- Order Details Modal -->
+<div id="orderDetailsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-panel bg-slate-800/95 rounded-[2rem] shadow-2xl border border-white/10 max-w-4xl w-full max-h-[80vh] overflow-hidden">
+        <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-white">Sipariş Detayları</h3>
+            <button onclick="closeOrderDetails()" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 hover:text-white transition-all">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+        <div id="orderDetailsContent" class="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
+            <!-- Details will be loaded here -->
         </div>
     </div>
 </div>
+
+<script>
+    function viewOrderDetails(orderId) {
+        fetch(`/Finans/GetOrderDetails?orderId=${orderId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const content = document.getElementById('orderDetailsContent');
+                    content.innerHTML = `
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="bg-slate-800/50 border-b border-white/5">
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Ürün</th>
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Miktar</th>
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Birim Fiyat</th>
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">İndirim</th>
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">KDV</th>
+                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Toplam</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5">
+                                    ${data.details.map(item => `
+                                        <tr class="hover:bg-slate-700/30 transition-colors">
+                                            <td class="px-4 py-3">
+                                                <span class="text-sm text-white font-medium">${item.productName || '-'}</span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="text-[11px] text-slate-400">${item.quantity || 0} ${item.stockUnitType || ''}</span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="text-[11px] text-slate-300">${(item.unitPrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="text-xs text-orange-400">%${item.lineDiscountRate || 0}</span>
+                                            </td>
+                                            <td class="px-4 py-3">
+                                                <span class="text-xs text-slate-400">%${item.tax || 0}</span>
+                                            </td>
+                                            <td class="px-4 py-3 whitespace-nowrap">
+                                                <span class="text-[11px] font-bold text-emerald-400">${(item.netLineTotalWithTax || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    document.getElementById('orderDetailsModal').classList.remove('hidden');
+                } else {
+                    alert('Sipariş detayları yüklenemedi: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Bir hata oluştu');
+            });
+    }
+
+    function closeOrderDetails() {
+        document.getElementById('orderDetailsModal').classList.add('hidden');
+    }
+
+    // Close modal on outside click
+    document.getElementById('orderDetailsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeOrderDetails();
+        }
+    });
+
+    // --- Chart.js Implementation ---
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('productGroupChart');
+        if (!ctx) return;
+
+        // Deserialize Data
+        const chartData = @Html.Raw(Json.Serialize(ViewBag.ChartData));
+        
+        if (!chartData || !chartData.labels || chartData.labels.length === 0) return;
+
+        // Custom Colors (Vibrant Palette for Dark Mode)
+        const colors = [
+            '#F87171', // Red 400
+            '#60A5FA', // Blue 400
+            '#34D399', // Emerald 400
+            '#FBBF24', // Amber 400
+            '#A78BFA', // Violet 400
+            '#F472B6', // Pink 400
+            '#22D3EE'  // Cyan 400
+        ];
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: chartData.labels,
+                datasets: [{
+                    data: chartData.values,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: {
+                    legend: {
+                        display: false // Custom legend
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        titleColor: '#e2e8f0',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(255, 255, 255, 0.1)',
+                        borderWidth: 1,
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                let value = context.parsed || 0;
+                                let total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                let percentage = ((value / total) * 100).toFixed(1) + '%';
+                                return label + ': ' + new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(value) + ' (' + percentage + ')';
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                id: 'htmlLegend',
+                afterUpdate: function(chart) {
+                    const container = document.getElementById('chartLegend');
+                    if (!container) return;
+                    container.innerHTML = '';
+                    
+                    const items = chart.options.plugins.legend.labels.generateLabels(chart);
+                    
+                    items.forEach(item => {
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center justify-between text-xs p-1.5 hover:bg-white/5 rounded-lg cursor-pointer transition-colors';
+                        div.onclick = () => {
+                            chart.toggleDataVisibility(item.index);
+                            div.classList.toggle('opacity-50');
+                            chart.update();
+                        };
+                        
+                        const colorDetail = item.fillStyle;
+                        const value = chart.data.datasets[0].data[item.index];
+                        const formattedValue = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value);
+
+                        div.innerHTML = `
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${colorDetail}"></span>
+                                <span class="text-slate-300 font-medium truncate max-w-[120px]" title="${item.text}">${item.text}</span>
+                            </div>
+                            <span class="text-slate-400 font-bold">${formattedValue}</span>
+                        `;
+                        container.appendChild(div);
+                    });
+                }
+            }]
+        });
+    });
+
+    function toggleActionMenu() {
+        const menu = document.getElementById('actionMenu');
+        menu.classList.toggle('hidden');
+    }
+
+    function sendReconciliation() {
+        // Close menu
+        document.getElementById('actionMenu').classList.add('hidden');
+        
+        // Show loading (optional/simple)
+        const btn = document.querySelector('button[onclick="toggleActionMenu()"]');
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="inline-block animate-spin mr-2"><i class="bi bi-arrow-clockwise"></i></span> İşleniyor...';
+        btn.disabled = true;
+
+        // Get filter params from URL or implicit defaults
+        const urlParams = new URLSearchParams(window.location.search);
+        const filter = urlParams.get('filter') || 'month';
+        const startDate = urlParams.get('startDate') || '';
+        const endDate = urlParams.get('endDate') || '';
+
+        fetch(`/Finans/SendReconciliation?filter=${filter}&startDate=${startDate}&endDate=${endDate}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir bağlantı hatası oluştu.');
+        })
+        .finally(() => {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        });
+    }
+
+    // Close menu when clicking outside
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('actionMenu');
+        const btn = document.querySelector('button[onclick="toggleActionMenu()"]');
+        
+        if (menu && !menu.classList.contains('hidden')) {
+            if (!menu.contains(e.target) && !btn.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
+        }
+    });
+
+    // Deep Linking: Auto-open Order Details if param exists
+    document.addEventListener("DOMContentLoaded", function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const openOrderId = urlParams.get('openOrder');
+        if (openOrderId) {
+            // Small delay to ensure DOM is fully ready and transitions look smooth
+            setTimeout(() => {
+                viewOrderDetails(openOrderId);
+                // Clean URL so refresh goes to main index
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }, 500);
+        }
+    });
+</script>

@@ -10,7 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddTransient<IEmailService, SmtpEmailService>();
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
+builder.Services.AddTransient<UniCP.Services.GeminiService>();
+
+// Performance Optimization: Response Compression
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
 
 builder.Services.AddDbContext<DataContext>(options =>
 {
@@ -59,6 +66,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseResponseCompression(); // Must be before Static Files
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();

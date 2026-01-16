@@ -28,6 +28,19 @@ public partial class TBL_TALEP
     [StringLength(10)]
     public string? BYTDURUM { get; set; }
 
+    [Column(TypeName = "decimal(18, 2)")]
+    public decimal? DEC_EFOR { get; set; }
+
+    [Unicode(false)]
+    public string? TXT_SORUMLULAR { get; set; }
+
+    [StringLength(50)]
+    [Unicode(false)]
+    public string? TXT_PO { get; set; }
+
+    [Column(TypeName = "datetime")]
+    public DateTime? TRHKAYIT { get; set; }
+
     [InverseProperty("LNGTALEPKODNavigation")]
     public virtual ICollection<TBL_TALEP_FILE> TBL_TALEP_FILEs { get; set; } = new List<TBL_TALEP_FILE>();
 
