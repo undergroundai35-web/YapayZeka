@@ -96,6 +96,8 @@ namespace UniCP.Controllers
             ViewBag.OverdueCount = pendingOrders.Count(x => x.Gecikme_Gun > 0);
             ViewBag.WaitingForMaturityCount = pendingOrders.Count(x => x.Gecikme_Gun <= 0);
 
+            ViewBag.WaitingForMaturityCount = pendingOrders.Count(x => x.Gecikme_Gun <= 0);
+
             return View(filteredList);
         }
 

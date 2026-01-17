@@ -57,7 +57,13 @@ builder.Services.ConfigureApplicationCookie(options =>
 });
 
 
+
 var app = builder.Build();
+
+// Enforce Turkish Culture (tr-TR) for currency and date formatting
+var cultureInfo = new System.Globalization.CultureInfo("tr-TR");
+System.Globalization.CultureInfo.DefaultThreadCurrentCulture = cultureInfo;
+System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 if (!app.Environment.IsDevelopment())
 {
