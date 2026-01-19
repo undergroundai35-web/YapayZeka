@@ -233,7 +233,7 @@
                                         <span class="text-[11px] font-bold text-emerald-400">@siparis.TotalAmountWithTax?.ToString("C2")</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium border @statusColor backdrop-blur-md shadow-sm">
+                                        <span class="js-status-badge px-2.5 py-1 rounded-lg text-xs font-medium border @statusColor backdrop-blur-md shadow-sm">
                                             @formattedStatus
                                         </span>
                                     </td>
@@ -242,16 +242,18 @@
                                             <button onclick="viewOrderDetails('@siparis.OrderId')" class="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-all">
                                                 <i class="bi bi-eye"></i> Görüntüle
                                             </button>
-                                            @if (isUnInvoiced && !isApproved)
+                                            @if (isUnInvoiced || isApproved)
                                             {
-                                                <button onclick="openPOModal('@siparis.OrderId')" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shadow-lg shadow-emerald-500/10" title="Onayla">
-                                                    <i class="bi bi-check-lg"></i> Onayla
-                                                </button>
-                                            }
-                                            else if (isApproved)
-                                            {
-                                                <button onclick="revokeOrder(this, '@siparis.OrderId')" class="px-3 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-bold rounded-lg border border-rose-500/20 hover:bg-rose-500/20 transition-all shadow-lg shadow-rose-500/10" title="Onayı Geri Al">
-                                                    <i class="bi bi-arrow-counterclockwise"></i> Geri Al
+                                                var btnAction = isApproved ? "revoke" : "approve";
+                                                var btnText = isApproved ? "Geri Al" : "Onayla";
+                                                var btnIcon = isApproved ? "bi-arrow-counterclockwise" : "bi-check-lg";
+                                                var btnClasses = isApproved 
+                                                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20 shadow-rose-500/10" 
+                                                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 shadow-emerald-500/10";
+
+                                                <button onclick="toggleApproval(this, '@siparis.OrderId', '@btnAction')" 
+                                                        class="js-approval-btn px-3 py-1 @btnClasses text-[10px] font-bold rounded-lg border transition-all shadow-lg">
+                                                    <i class="bi @btnIcon"></i> @btnText
                                                 </button>
                                             }
                                         </div>
@@ -507,45 +509,54 @@
         const urlParams = new URLSearchParams(window.location.search);
         const openOrderId = urlParams.get('openOrder');
         if (openOrderId) {
-            // Small delay to ensure DOM is fully ready and transitions look smooth
             setTimeout(() => {
                 viewOrderDetails(openOrderId);
-                // Clean URL so refresh goes to main index
                 window.history.replaceState({}, document.title, window.location.pathname);
             }, 500);
         }
     }); 
-    // End of DOMContentLoaded
 
-    // Global Scope Functions
-    function openPOModal(orderId) {
-        document.getElementById('poOrderId').value = orderId;
-        document.getElementById('poInput').value = ''; // Changed from poNumber to poInput to match HTML
-        document.getElementById('poModal').classList.remove('hidden');
-        document.getElementById('poInput').focus(); // Changed from poNumber to poInput to match HTML
+    // Global Functions (Unified Logic)
+    let activeApprovalBtn = null; // Track which button launched the modal
+
+    function toggleApproval(btn, orderId, action) {
+        if (action === 'approve') {
+            // Open Modal for correct workflow
+            activeApprovalBtn = btn;
+            document.getElementById('poOrderId').value = orderId;
+            document.getElementById('poInput').value = ''; 
+            document.getElementById('poModal').classList.remove('hidden');
+            document.getElementById('poInput').focus();
+        } else {
+            // Revoke immediately
+            handleRevoke(btn, orderId);
+        }
     }
 
     function closePOModal() {
         document.getElementById('poModal').classList.add('hidden');
+        activeApprovalBtn = null;
     }
 
     function submitPO() {
         const orderId = document.getElementById('poOrderId').value;
-        const poNumber = document.getElementById('poInput').value; // Changed from poNumber to poInput to match HTML
+        const poNumber = document.getElementById('poInput').value;
+        const btn = activeApprovalBtn;
 
-        if (!poNumber) {
-            alert('Lütfen PO Numarası giriniz.');
-            return;
-        }
+        // Note: Client-side validation removed to allow empty PO if desired, 
+        // but if strict requirement is needed:
+        // if (!poNumber) { alert('Lütfen PO Numarası giriniz.'); return; }
 
         const formData = new FormData();
         formData.append('orderId', orderId);
         formData.append('poNumber', poNumber);
         
         const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-        if (tokenInput) {
-            formData.append('__RequestVerificationToken', tokenInput.value);
-        }
+        if (tokenInput) formData.append('__RequestVerificationToken', tokenInput.value);
+
+        // Optimistic UI Update (Immediate visual feedback on 'Save')
+        if (btn) updateUiState(btn, orderId, 'approved');
+        closePOModal();
 
         fetch('/Finans/UpdatePO', {
             method: 'POST',
@@ -554,74 +565,30 @@
         .then(async response => {
              const isJson = response.headers.get('content-type')?.includes('application/json');
              const data = isJson ? await response.json() : null;
-             
-             if (!response.ok) {
-                 const error = (data && data.message) || response.statusText;
-                 return Promise.reject(error);
-             }
-             if (!isJson) return Promise.reject("Beklenmeyen sunucu yanıtı");
-
+             if (!response.ok) throw new Error((data && data.message) || response.statusText);
              return data;
         })
         .then(data => {
-            if (data.success) {
-                closePOModal();
-                 // Show success toast
-                 const toast = document.createElement('div');
-                 toast.className = 'fixed top-4 right-4 bg-emerald-500/90 text-white px-4 py-3 rounded-xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3';
-                 toast.innerHTML = '<i class="bi bi-check-circle-fill"></i> Sipariş başarıyla onaylandı!';
-                 document.body.appendChild(toast);
-                 
-                 setTimeout(() => {
-                     // Update UI manually without reload or just reload
-                     location.reload(); 
-                     // Or smart update row:
-                     // document.querySelector(`tr[data-orderid="${orderId}"] .status-badge`).className = ...
-                 }, 1000);
-            } else {
-                alert('Hata: ' + data.message);
-            }
+            if (!data.success) throw new Error(data.message);
+            console.log(`Order ${orderId} approved successfully.`);
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Bir hata oluştu: ' + error);
+            alert('İşlem başarısız: ' + error.message);
+            if (btn) updateUiState(btn, orderId, 'revoked'); // Revert on failure
+            setTimeout(() => location.reload(), 1000); 
         });
     }
 
-    function revokeOrder(btn, orderId) {
-        // 2-Step Confirmation Logic
-        if (btn.dataset.confirm !== 'true') {
-            btn.dataset.confirm = 'true';
-            const originalContent = btn.innerHTML;
-            btn.dataset.original = originalContent; // Store original
-            
-            btn.innerHTML = '<i class="bi bi-question-circle"></i> Emin misin?';
-            btn.classList.remove('bg-rose-500/10', 'text-rose-400', 'border-rose-500/20');
-            btn.classList.add('bg-orange-500/20', 'text-orange-400', 'border-orange-500/30');
-
-            // Revert after 3 seconds
-            setTimeout(() => {
-                if (btn && btn.isConnected && btn.dataset.confirm === 'true') {
-                    btn.dataset.confirm = 'false';
-                    btn.innerHTML = originalContent;
-                    btn.classList.add('bg-rose-500/10', 'text-rose-400', 'border-rose-500/20');
-                    btn.classList.remove('bg-orange-500/20', 'text-orange-400', 'border-orange-500/30');
-                }
-            }, 3000);
-            return;
-        }
-
-        // Confirmed - Proceed
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
-        btn.disabled = true;
+    function handleRevoke(btn, orderId) {
+        // Optimistic UI
+        updateUiState(btn, orderId, 'revoked');
 
         const formData = new FormData();
         formData.append('orderId', orderId);
         
         const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
-        if (tokenInput) {
-            formData.append('__RequestVerificationToken', tokenInput.value);
-        }
+        if (tokenInput) formData.append('__RequestVerificationToken', tokenInput.value);
 
         fetch('/Finans/RevokePO', {
             method: 'POST',
@@ -630,33 +597,53 @@
         .then(async response => {
              const isJson = response.headers.get('content-type')?.includes('application/json');
              const data = isJson ? await response.json() : null;
-             
-             if (!response.ok) {
-                 const error = (data && data.message) || response.statusText;
-                 return Promise.reject(error);
-             }
-             if (!isJson) return Promise.reject("Beklenmeyen sunucu yanıtı");
-
+             if (!response.ok) throw new Error((data && data.message) || response.statusText);
              return data;
         })
         .then(data => {
-            if (data.success) {
-                 const toast = document.createElement('div');
-                 toast.className = 'fixed top-4 right-4 bg-rose-500/90 text-white px-4 py-3 rounded-xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3';
-                 toast.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Onay geri alındı!';
-                 document.body.appendChild(toast);
-                 
-                 setTimeout(() => {
-                     location.reload(); 
-                 }, 1000);
-            } else {
-                alert('Hata: ' + data.message);
-            }
+            if (!data.success) throw new Error(data.message);
+            console.log(`Order ${orderId} revoked successfully.`);
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Bir hata oluştu: ' + error);
+            alert('İşlem başarısız: ' + error.message);
+            updateUiState(btn, orderId, 'approved'); // Revert on failure
+            setTimeout(() => location.reload(), 1000); 
         });
+    }
+
+    // Helper to swap button styles and status badge
+    function updateUiState(btn, orderId, targetState) {
+        if (!btn) return;
+
+        if (targetState === 'approved') {
+            btn.className = "js-approval-btn px-3 py-1 bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20 shadow-rose-500/10 text-[10px] font-bold rounded-lg border transition-all shadow-lg";
+            btn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Geri Al';
+            btn.setAttribute('onclick', `toggleApproval(this, '${orderId}', 'revoke')`);
+            
+            const row = btn.closest('tr');
+            if(row) {
+                const badge = row.querySelector('.js-status-badge');
+                if(badge) {
+                    badge.innerHTML = 'Onaylandı';
+                    badge.className = "js-status-badge px-2.5 py-1 rounded-lg text-xs font-medium border bg-emerald-500/10 text-emerald-400 border-emerald-500/20 backdrop-blur-md shadow-sm";
+                }
+            }
+        } else {
+            // Revoked (Pending)
+            btn.className = "js-approval-btn px-3 py-1 bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 shadow-emerald-500/10 text-[10px] font-bold rounded-lg border transition-all shadow-lg";
+            btn.innerHTML = '<i class="bi bi-check-lg"></i> Onayla';
+            btn.setAttribute('onclick', `toggleApproval(this, '${orderId}', 'approve')`);
+
+            const row = btn.closest('tr');
+            if(row) {
+                const badge = row.querySelector('.js-status-badge');
+                if(badge) {
+                    badge.innerHTML = 'Onay Bekliyor';
+                    badge.className = "js-status-badge px-2.5 py-1 rounded-lg text-xs font-medium border bg-amber-500/10 text-amber-400 border-amber-500/20 backdrop-blur-md shadow-sm";
+                }
+            }
+        }
     }
 </script>
 ```

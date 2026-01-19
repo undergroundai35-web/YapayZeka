@@ -165,7 +165,7 @@
     function submitRequest() {
         const title = document.getElementById('reqTitle').value.trim();
         const description = document.getElementById('reqDescription').value.trim();
-        const po = document.getElementById('reqPo').value.trim();
+        const po = document.getElementById('reqPo') ? document.getElementById('reqPo').value.trim() : "";
         const assignees = selectedUserIds.map(u => u.id).join(',');
 
         if (!title) {

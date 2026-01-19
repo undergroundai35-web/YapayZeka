@@ -8,17 +8,9 @@
     <!-- Dynamic Header & Stats Row -->
     @{
         var totalTickets = Model?.Count ?? 0;
-        var escalatedTickets = Model?.Count(x => (x.SLA_YD_Cozum_Kalan_Sure ?? 0) < 0) ?? 0;
-        
-        var statusGroups = Model?
-            .GroupBy(x => x.Bildirim_Durumu ?? "Bilinmiyor")
-            .Select(g => new { 
-                Status = g.Key, 
-                Count = g.Count(),
-                Percent = totalTickets > 0 ? (double)g.Count() / totalTickets * 100 : 0
-            })
-            .OrderByDescending(x => x.Count)
-            .ToList();
+        var escalatedTickets = Model?.Count(x => (x.SLA_YD_Cozum_Kalan_Sure ?? 0) < 0 || (x.Bildirim_Durumu ?? "").Contains("Eskale")) ?? 0;
+        var processingTickets = Model?.Count(x => (x.Bildirim_Durumu ?? "").Contains("Çalışılıyor") || (x.Bildirim_Durumu ?? "").Contains("Devam") || (x.Bildirim_Durumu ?? "").Contains("İşlemde")) ?? 0;
+        var waitingTickets = Model?.Count(x => (x.Bildirim_Durumu ?? "").Contains("Bekleniyor") || (x.Bildirim_Durumu ?? "").Contains("Müşteri")) ?? 0;
 
         string GetStatusColor(string status)
         {
@@ -37,49 +29,47 @@
         string GetStatusBg(string status)
         {
             var color = GetStatusColor(status);
-            // Convert approximate hex to rgba for background, or use hardcoded classes logic if preferred
-            // For now, using inline style for bg with low opacity to match dark theme aesthetics
             return color + "20"; // ~12% opacity hex alpha
         }
     }
 
-    <!-- Top Integrated Stats Layer -->
-    <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-2">
-        <div class="flex items-center gap-4">
-            <h1 class="text-2xl font-semibold text-white tracking-tight">Destek talepleri</h1>
-            <div class="flex items-center gap-2">
-                <span class="px-3 py-1 rounded-full bg-slate-800 text-slate-300 text-[11px] font-medium tracking-wide capitalize border border-slate-700">@totalTickets aktif</span>
-                @if (escalatedTickets > 0)
-                {
-                    <span class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 text-[11px] font-medium tracking-wide capitalize animate-pulse">
-                        <i class="bi bi-fire"></i> @escalatedTickets eskale
-                    </span>
-                }
-            </div>
+    <!-- Header Section -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-white tracking-tight">Destek Talepleri</h1>
+            <p class="text-sm text-slate-400 font-normal">Aktif destek talepleri ve SLA durumları</p>
+        </div>
+    </div>
+
+    <!-- Stats Row (Large Cards) -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Total Card -->
+        <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
+            <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Toplam Talep</p>
+            <h3 class="text-2xl font-semibold text-white">@totalTickets</h3>
         </div>
 
-        <!-- Compact Distribution Chips -->
-        <div class="flex items-center gap-2 glass-panel p-1.5 rounded-2xl">
-            @if (statusGroups != null)
-            {
-                @foreach (var group in statusGroups.Take(4))
-                {
-                    var color = GetStatusColor(group.Status);
-                    <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-transparent hover:border-white/5 hover:bg-slate-800 transition-all group cursor-default">
-                        <div class="w-1.5 h-1.5 rounded-full shadow-[0_0_8px_currentColor]" style="color: @color; background-color: @color"></div>
-                        <div class="flex flex-col">
-                            <span class="text-[9px] font-normal text-slate-400 group-hover:text-slate-300 capitalize tracking-normal leading-none">@group.Status</span>
-                            <span class="text-xs font-medium text-white leading-tight">@group.Count</span>
-                        </div>
-                    </div>
+        <!-- Escalated Card -->
+        <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
+            <div class="flex items-center gap-2 mb-1">
+                <p class="text-[10px] font-normal text-slate-400 tracking-wide" style="text-transform: none;">Eskale / Kritik</p>
+                @if(escalatedTickets > 0) {
+                    <span class="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"></span>
                 }
-                @if (statusGroups.Count > 4)
-                {
-                    <div class="w-8 h-8 rounded-xl flex items-center justify-center text-[10px] font-medium text-slate-500 hover:bg-slate-800 transition-colors cursor-pointer" title="Daha Fazla">
-                        +@(statusGroups.Count - 4)
-                    </div>
-                }
-            }
+            </div>
+            <h3 class="text-2xl font-semibold text-red-400">@escalatedTickets</h3>
+        </div>
+
+        <!-- Processing Card -->
+        <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
+            <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Üzerinde Çalışılıyor</p>
+            <h3 class="text-2xl font-semibold text-blue-400">@processingTickets</h3>
+        </div>
+
+        <!-- Waiting Card -->
+        <div class="glass-panel p-5 rounded-2xl group hover:bg-slate-800/50 transition-colors">
+            <p class="text-[10px] font-normal text-slate-400 tracking-wide mb-1" style="text-transform: none;">Müşteriden Bilgi Bekleniyor</p>
+            <h3 class="text-2xl font-semibold text-fuchsia-400">@waitingTickets</h3>
         </div>
     </div>
 

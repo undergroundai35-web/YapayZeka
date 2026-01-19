@@ -23,7 +23,7 @@ namespace UniCP.Controllers
             _emailService = emailService;
         }
 
-        public IActionResult Index(string filter = "month", DateTime? startDate = null, DateTime? endDate = null)
+        public IActionResult Index(string filter = "3months", DateTime? startDate = null, DateTime? endDate = null)
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Account");
@@ -85,50 +85,67 @@ namespace UniCP.Controllers
             if (startDate.HasValue) ViewBag.StartDate = startDate.Value.ToString("yyyy-MM-dd");
             if (endDate.HasValue) ViewBag.EndDate = endDate.Value.ToString("yyyy-MM-dd");
 
-            // Chart Data Logic
-            var chartDataRaw = _mskDb.SP_VARUNA_CHART_DATA(firmaKod).ToList();
+            // Chart Data Logic (Manual Aggregation with Normalization)
+            var chartGroups = new Dictionary<string, decimal>();
+            decimal totalFromDetails = 0;
             
-            // Filter Chart Data (In-memory)
-            // Determine effective dates for Chart
-            DateTime chartStartDate;
-            DateTime chartEndDate = DateTime.Now;
-
-            if (startDate.HasValue && endDate.HasValue)
+            foreach (var order in filteredList)
             {
-                chartStartDate = startDate.Value;
-                chartEndDate = endDate.Value.Date.AddDays(1).AddTicks(-1);
-            }
-            else
-            {
-                switch (filter.ToLower())
+                if (string.IsNullOrEmpty(order.OrderId)) continue;
+                
+                try 
                 {
-                    case "3months": chartStartDate = DateTime.Now.AddMonths(-3); break;
-                    case "year": chartStartDate = DateTime.Now.AddYears(-1); break;
-                    case "month": 
-                    default: chartStartDate = DateTime.Now.AddMonths(-1); break;
+                    var details = _mskDb.SP_VARUNA_SIPARIS_DETAY(order.OrderId.Trim()).ToList();
+                    foreach (var item in details)
+                    {
+                        var amount = item.NetLineTotalWithTax ?? 0;
+                        if (amount == 0) continue;
+
+                        string group = "Diğer";
+                        string pName = (item.ProductName ?? "").ToLower(new System.Globalization.CultureInfo("tr-TR"));
+
+                        if (pName.Contains("bakım") || pName.Contains("destek") || pName.Contains("sla")) 
+                            group = "Bakım ve Destek";
+                        else if (pName.Contains("hizmet") || pName.Contains("danışmanlık") || pName.Contains("geliştirme") || pName.Contains("adam/gün") || pName.Contains("analiz") || pName.Contains("yazılım")) 
+                            group = "Hizmet";
+                        else if (pName.Contains("lisans"))
+                            group = "Lisans";
+
+                        if (!chartGroups.ContainsKey(group)) chartGroups[group] = 0;
+                        chartGroups[group] += amount;
+                        totalFromDetails += amount;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[ChartBuilder] Error processing order {order.OrderId}: {ex.Message}");
                 }
             }
 
-            // Filter Chart Data (In-memory)
-            var filteredChartData = chartDataRaw
-                .Where(x => x.TARIH >= chartStartDate && x.TARIH <= chartEndDate)
-                .ToList();
+            // Normalization: Ensure Chart Sum equals Header Sum
+            // If details are missing or totals don't match, dump the difference into "Diğer"
+            decimal totalHeader = filteredList.Sum(x => x.TotalAmountWithTax ?? 0);
+            decimal difference = totalHeader - totalFromDetails;
 
-            // Group and Sum
-            var chartGrouped = filteredChartData
-                .GroupBy(x => x.GRUP ?? "Diğer")
-                .Select(g => new {
-                    Label = g.Key,
-                    Value = g.Sum(x => x.TOPLAMTUTAR)
-                })
-                .OrderByDescending(x => x.Value)
-                .ToList();
+            if (difference > 0)
+            {
+                if (!chartGroups.ContainsKey("Diğer")) chartGroups["Diğer"] = 0;
+                chartGroups["Diğer"] += difference;
+            }
 
-            ViewBag.ChartData = new {
-                Labels = chartGrouped.Select(x => x.Label).ToList(),
-                Values = chartGrouped.Select(x => x.Value).ToList(),
-                Total = chartGrouped.Sum(x => x.Value)
-            };
+            if (chartGroups.Any())
+            {
+                 var sortedGroups = chartGroups.OrderByDescending(x => x.Value).ToList();
+                 ViewBag.ChartData = new {
+                    Labels = sortedGroups.Select(x => x.Key).ToList(),
+                    Values = sortedGroups.Select(x => x.Value).ToList(),
+                    Total = sortedGroups.Sum(x => x.Value)
+                };
+            }
+            else
+            {
+                ViewBag.ChartData = null;
+            }
 
             // Calculate Pending Payment (Bekleyen Bakiye > 0)
             var pendingOrders = filteredList.Where(x => x.Bekleyen_Bakiye > 0).ToList();
