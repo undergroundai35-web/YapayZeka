@@ -321,19 +321,27 @@ namespace UniCP.Controllers
             return (viewModels, startDate, endDate);
         }
 
-        public IActionResult Destek(string period = "1m", DateTime? baslangic = null, DateTime? bitis = null)
+        public IActionResult Destek(string period = "1m", DateTime? baslangic = null, DateTime? bitis = null, string status = null)
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Account");
             int userId = int.Parse(userIdStr);
 
             // Fetch Data
-            var (tickets, startDate, endDate) = GetSupportTickets(userId, period, baslangic, bitis);
+            var (tickets, startDate, endDate, allStatuses) = GetSupportTickets(userId, period, baslangic, bitis);
+
+            // Apply Status Filter
+            if (!string.IsNullOrEmpty(status))
+            {
+                tickets = tickets.Where(r => r.Bildirim_Durumu == status).ToList();
+            }
 
             // Prepare View Data
             ViewBag.CurrentPeriod = period;
             ViewBag.StartDate = startDate.ToString("yyyy-MM-dd");
             ViewBag.EndDate = endDate.ToString("yyyy-MM-dd");
+            ViewBag.Status = status;
+            ViewBag.AllStatuses = allStatuses;
 
             // Prepare Chart Data
             var statusCounts = tickets
@@ -353,7 +361,7 @@ namespace UniCP.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Account");
             int userId = int.Parse(userIdStr);
 
-            var (tickets, _, _) = GetSupportTickets(userId, period, baslangic, bitis);
+            var (tickets, _, _, _) = GetSupportTickets(userId, period, baslangic, bitis);
             var content = GenerateSupportExcel(tickets);
             var fileName = $"Destek_Raporu_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
 
@@ -372,7 +380,7 @@ namespace UniCP.Controllers
 
             try
             {
-                var (tickets, _, _) = GetSupportTickets(userId, period, baslangic, bitis);
+                var (tickets, _, _, _) = GetSupportTickets(userId, period, baslangic, bitis);
                 var content = GenerateSupportExcel(tickets);
 
                 string subject = $"{firmaAdi} Destek Talebi Raporu";
@@ -437,18 +445,24 @@ namespace UniCP.Controllers
             }
         }
 
-        private (List<SSP_N4B_TICKETLARI> Tickets, DateTime StartDate, DateTime EndDate) GetSupportTickets(int userId, string period, DateTime? baslangic, DateTime? bitis)
+        private (List<SSP_N4B_TICKETLARI> Tickets, DateTime StartDate, DateTime EndDate, List<string> AllStatuses) GetSupportTickets(int userId, string period, DateTime? baslangic, DateTime? bitis)
         {
             var kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
-            if (kullanici == null) return (new List<SSP_N4B_TICKETLARI>(), DateTime.Now, DateTime.Now);
+            if (kullanici == null) return (new List<SSP_N4B_TICKETLARI>(), DateTime.Now, DateTime.Now, new List<string>());
 
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "test@univera.com.tr";
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
 
             // Fetch Data using SP_N4B_TICKETLARI
-            // ID = 0 to fetch all tickets mostly, logic from N4BController
-            // Assuming SP returns all tickets and we filter locally for flexibility
             var allTickets = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, 0);
+
+            // Extract All Unique Statuses (Unfiltered)
+            var allStatuses = allTickets
+                .Select(t => t.Bildirim_Durumu)
+                .Where(s => !string.IsNullOrEmpty(s))
+                .Distinct()
+                .OrderBy(s => s)
+                .ToList();
 
             // Filtering Logic
             DateTime startDate;
@@ -484,7 +498,7 @@ namespace UniCP.Controllers
                 .OrderByDescending(t => t.Bildirim_Tarihi)
                 .ToList();
 
-            return (filteredTickets, startDate, endDate);
+            return (filteredTickets, startDate, endDate, allStatuses);
         }
 
         private int GetProgressForStatus(string status)

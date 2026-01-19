@@ -70,22 +70,48 @@
         <div class="flex flex-col md:flex-row items-center gap-3">
              <!-- Preset Filters -->
              <div class="flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
-                <a href="?period=1m" class="px-4 py-2 rounded-lg text-sm font-medium transition-all @(currentPeriod == "1m" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">1 Ay</a>
-                <a href="?period=3m" class="px-4 py-2 rounded-lg text-sm font-medium transition-all @(currentPeriod == "3m" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">3 Ay</a>
-                <a href="?period=1y" class="px-4 py-2 rounded-lg text-sm font-medium transition-all @(currentPeriod == "1y" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">1 Yıl</a>
+                <a href="?period=1m@(ViewBag.Status != null ? "&status=" + ViewBag.Status : "")" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all @(currentPeriod == "1m" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">1 Ay</a>
+                <a href="?period=3m@(ViewBag.Status != null ? "&status=" + ViewBag.Status : "")" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all @(currentPeriod == "3m" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">3 Ay</a>
+                <a href="?period=1y@(ViewBag.Status != null ? "&status=" + ViewBag.Status : "")" class="px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all @(currentPeriod == "1y" ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/25" : "text-slate-400 hover:text-white hover:bg-white/5")">1 Yıl</a>
             </div>
 
-            <!-- Custom Date Filter -->
+            <!-- Custom Date & Status Filter -->
             <form method="get" action="/Raporlar/Destek" class="flex items-center gap-2 bg-slate-800 p-1 rounded-xl border border-slate-700 pl-3">
-                <input type="hidden" name="period" value="custom" />
+                <input type="hidden" name="period" value="@currentPeriod" />
+                
+                <!-- Status Filter -->
+                 <div class="relative">
+                    <select name="status" onchange="this.form.submit()" class="appearance-none bg-slate-900 border border-slate-700 rounded-lg pl-3 pr-8 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 cursor-pointer">
+                        <option value="">Tüm Durumlar</option>
+                        @if (ViewBag.AllStatuses != null)
+                        {
+                            foreach (var s in (List<string>)ViewBag.AllStatuses)
+                            {
+                                if (s == (string)ViewBag.Status)
+                                {
+                                    <option value="@s" selected>@s</option>
+                                }
+                                else
+                                {
+                                    <option value="@s">@s</option>
+                                }
+                            }
+                        }
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-500">
+                        <i class="bi bi-chevron-down text-[10px]"></i>
+                    </div>
+                </div>
+
+                <div class="w-px h-4 bg-slate-700 mx-1"></div>
                 
                 <div class="flex items-center gap-2">
-                    <input type="date" name="baslangic" value="@startDate" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" required />
+                    <input type="date" name="baslangic" value="@startDate" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" />
                     <span class="text-slate-500 text-xs">-</span>
-                    <input type="date" name="bitis" value="@endDate" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" required />
+                    <input type="date" name="bitis" value="@endDate" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" />
                 </div>
                 
-                <button type="submit" class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors border border-indigo-500/20">
+                <button type="submit" onclick="this.form.querySelector('input[name=period]').value='custom'" class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500 hover:text-white transition-colors border border-indigo-500/20">
                     <i class="bi bi-funnel-fill text-sm"></i>
                 </button>
             </form>
