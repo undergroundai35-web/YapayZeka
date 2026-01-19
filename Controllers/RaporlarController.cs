@@ -27,7 +27,7 @@ namespace UniCP.Controllers
             return View();
         }
 
-        public IActionResult Gelistirme(string period = "1m", DateTime? baslangic = null, DateTime? bitis = null)
+        public IActionResult Gelistirme(string period = "1m", DateTime? baslangic = null, DateTime? bitis = null, string status = null)
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
            
@@ -43,10 +43,21 @@ namespace UniCP.Controllers
             // Fetch Data
             var (viewModels, startDate, endDate) = GetDevelopmentRequests(userId, period, baslangic, bitis);
 
+            // Extract All Statuses for Dropdown (Before Filtering)
+            var allStatuses = viewModels.Select(r => r.Status).Distinct().OrderBy(s => s).ToList();
+
+            // Apply Status Filter
+            if (!string.IsNullOrEmpty(status))
+            {
+                viewModels = viewModels.Where(r => r.Status == status).ToList();
+            }
+
             // Prepare View Data
             ViewBag.CurrentPeriod = period;
             ViewBag.StartDate = startDate.ToString("yyyy-MM-dd");
             ViewBag.EndDate = endDate.ToString("yyyy-MM-dd");
+            ViewBag.Status = status;
+            ViewBag.AllStatuses = allStatuses;
 
             // Prepare Chart Data
             var statusCounts = viewModels
@@ -201,11 +212,11 @@ namespace UniCP.Controllers
                 .Where(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
                               !string.Equals(tfs.MADDEDURUM, "CANCEL", StringComparison.OrdinalIgnoreCase) &&
                               !string.Equals(tfs.MADDEDURUM, "CANCELED", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
                               !string.Equals(tfs.MADDEDURUM, "SEND BACK", StringComparison.OrdinalIgnoreCase) &&
                               !string.Equals(tfs.MADDEDURUM, "SEND-BACK", StringComparison.OrdinalIgnoreCase) &&
                               !string.Equals(tfs.MADDEDURUM, "REJECTED", StringComparison.OrdinalIgnoreCase))
-                 .Where(tfs => tfs.ACILMATARIHI >= startDate && tfs.ACILMATARIHI <= endDate)
+                  .Where(tfs => (tfs.ACILMATARIHI >= startDate && tfs.ACILMATARIHI <= endDate) || 
+                               ((string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) || string.Equals(tfs.MADDEDURUM, "RESOLVE", StringComparison.OrdinalIgnoreCase)) && tfs.DEGISTIRMETARIHI >= startDate && tfs.DEGISTIRMETARIHI <= endDate))
                 .OrderByDescending(tfs => tfs.ACILMATARIHI)
                 .ToList();
 
@@ -246,6 +257,13 @@ namespace UniCP.Controllers
                     }
                 }
 
+                if (string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) || 
+                    string.Equals(tfs.MADDEDURUM, "RESOLVE", StringComparison.OrdinalIgnoreCase))
+                {
+                    baseStatus = "Tamamlandı";
+                    baseProgress = 100;
+                }
+
                 decimal? yazilimInfo = tfs.YAZILIM_TOPLAMAG;
 
                 viewModels.Add(new Request
@@ -272,7 +290,7 @@ namespace UniCP.Controllers
 
             // 4. Add Portal-Only Requests (Not in TFS yet)
             var portalOnlyRequests = portalRequests
-                .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.TRHKAYIT >= startDate && r.TRHKAYIT <= endDate)
+                .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.TRHKAYIT >= startDate && r.TRHKAYIT <= endDate && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1"))
                 .ToList();
 
             foreach (var req in portalOnlyRequests)

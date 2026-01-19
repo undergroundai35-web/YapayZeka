@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UniCP.DbData;
 
@@ -11,9 +12,11 @@ using UniCP.DbData;
 namespace UniCP.Migrations.MskDb
 {
     [DbContext(typeof(MskDbContext))]
-    partial class MskDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260117162526_AddFinansOnay")]
+    partial class AddFinansOnay
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -645,9 +648,6 @@ namespace UniCP.Migrations.MskDb
                     b.Property<DateTime>("CreatedDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("IsRevoked")
-                        .HasColumnType("bit");
-
                     b.Property<string>("OrderId")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -657,17 +657,9 @@ namespace UniCP.Migrations.MskDb
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<int?>("RevokedBy")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("RevokedDate")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedBy");
-
-                    b.HasIndex("RevokedBy");
 
                     b.ToTable("TBL_FINANS_ONAY");
                 });
@@ -1218,17 +1210,11 @@ namespace UniCP.Migrations.MskDb
 
             modelBuilder.Entity("UniCP.Models.MsK.TBL_FINANS_ONAY", b =>
                 {
-                    b.HasOne("UniCP.Models.MsK.TBL_KULLANICI", "CreatedByUser")
+                    b.HasOne("UniCP.Models.MsK.TBL_KULLANICI", "User")
                         .WithMany()
                         .HasForeignKey("CreatedBy");
 
-                    b.HasOne("UniCP.Models.MsK.TBL_KULLANICI", "RevokedByUser")
-                        .WithMany()
-                        .HasForeignKey("RevokedBy");
-
-                    b.Navigation("CreatedByUser");
-
-                    b.Navigation("RevokedByUser");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("UniCP.Models.MsK.TBL_N4BISSSEFILE", b =>

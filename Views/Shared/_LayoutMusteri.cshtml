@@ -113,6 +113,15 @@
             animation: scaleIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
         }
 
+        .glass-panel-static {
+            background: linear-gradient(135deg, rgba(42, 51, 78, 0.4) 0%, rgba(26, 31, 55, 0.6) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: scaleIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
         .glass-panel:hover {
             background: linear-gradient(135deg, rgba(52, 61, 88, 0.5) 0%, rgba(36, 41, 65, 0.7) 100%);
             border-color: rgba(255, 255, 255, 0.15);
@@ -238,10 +247,7 @@
                 Destek Merkezi
             </a>
 
-            <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
-                <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
-                Raporlar
-            </a>
+
 
             <a href="/Finans/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
                 <i class="bi bi-wallet2 mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "text-red-500 group-hover:text-red-400" : "")"></i>
@@ -261,6 +267,11 @@
             <a href="/Lisanslar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
                 <i class="bi bi-key-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "text-red-500 group-hover:text-red-400" : "")"></i>
                 Lisanslarım
+            </a>
+
+            <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                Raporlar
             </a>
         </div>
 

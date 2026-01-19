@@ -13,22 +13,9 @@
                 <div class="flex-1">
                     <h2 id="modalTitle" class="text-xl font-normal text-white tracking-normal">@Model.Title</h2>
                     <input id="modalEditTitle" class="hidden w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-lg focus:outline-none focus:border-red-500 placeholder-slate-500" placeholder="Talep Başlığı Giriniz..." />
-                    <div id="modalCreatePoContainer" class="hidden mt-2">
-                         <input type="text" id="modalEditPo" class="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-red-500 placeholder-slate-500" placeholder="Müşteri PO No (Örn: PO-2024-001)" />
-                    </div>
                     <div class="flex items-center gap-3 mt-1">
 
                         <span class="text-[10px] font-normal text-red-400 bg-red-500/10 px-2 py-0.5 rounded-full tracking-widest border border-red-500/20" id="modalId">@Model.Id</span>
-                        
-                        <!-- PO Display & Edit -->
-                        <div class="flex items-center gap-2 group/po relative">
-                            <span id="modalPropPoBadge" class="px-2 py-0.5 rounded-full text-[10px] bg-slate-700 text-slate-300 border border-slate-600 font-mono tracking-tight cursor-pointer hover:bg-slate-600 transition-colors" onclick="enablePoEdit()"></span>
-                            <div id="modalUpdatePoContainer" class="hidden absolute top-0 left-0 bg-slate-800 border border-slate-600 rounded-lg p-1 flex items-center gap-1 shadow-xl z-50 min-w-[150px]">
-                                <input type="text" id="modalUpdatePoInput" class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-[10px] text-white w-24 focus:outline-none focus:border-red-500" placeholder="PO No">
-                                <button onclick="savePo()" class="p-1 bg-emerald-500/20 text-emerald-400 rounded hover:bg-emerald-500/30 transition-colors"><i class="bi bi-check"></i></button>
-                                <button onclick="cancelPoEdit()" class="p-1 text-slate-400 hover:text-white transition-colors"><i class="bi bi-x"></i></button>
-                            </div>
-                        </div>
 
                         <span class="w-1 h-1 bg-slate-600 rounded-full"></span>
                         <p class="text-[10px] font-normal text-slate-400 tracking-widest">Geliştirme Talebi</p>
@@ -442,21 +429,6 @@
         // Populate Effort & Cost
         document.getElementById('modalPropEffort').innerText = (currentModalRequest.effort || "-").replace("K/G", "K/ Gün");
         document.getElementById('modalPropCost').innerText = currentModalRequest.cost || "-";
-        
-        // Show PO Logic
-        const poBadge = document.getElementById('modalPropPoBadge');
-        const poVal = currentModalRequest.po;
-        
-        if (poVal && poVal !== '-' && poVal.trim() !== '') {
-            poBadge.textContent = poVal;
-            poBadge.classList.remove('hidden', 'border-dashed', 'text-slate-500', 'bg-transparent');
-            poBadge.classList.add('bg-slate-700', 'text-slate-300', 'border-slate-600');
-        } else {
-            // Empty State (Editable)
-            poBadge.innerHTML = '<i class="bi bi-plus text-[9px]"></i> PO Ekle';
-            poBadge.classList.remove('hidden', 'bg-slate-700', 'text-slate-300', 'border-slate-600');
-            poBadge.classList.add('border-dashed', 'border-slate-600', 'text-slate-500', 'bg-transparent');
-        }
 
         // Populate Timeline Fields
         document.getElementById('modalTimelineTargetUAT').innerText = currentModalRequest.planlananPyuat || "-";
@@ -619,8 +591,7 @@
         document.getElementById('modalPropAssignedTo').classList.remove('hidden');
         document.getElementById('modalEditAssigneesContainer').classList.add('hidden');
 
-        document.getElementById('modalCreatePoContainer').classList.add('hidden');
-        document.getElementById('modalPropPoBadge').classList.add('hidden');
+
 
         document.getElementById('btnSave').classList.remove('hidden');
         document.getElementById('btnCreate').classList.add('hidden');

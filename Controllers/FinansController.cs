@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using UniCP.DbData;
 using UniCP.Models.Finans;
+using UniCP.Models.MsK;
+using Microsoft.EntityFrameworkCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
 using System.IO;
@@ -39,6 +41,44 @@ namespace UniCP.Controllers
             CalculateComparisonStats(firmaKod, filter, startDate, endDate, varunaSiparisler.Sum(x => x.TotalAmountWithTax ?? 0));
 
             var filteredList = varunaSiparisler.ToList();
+            
+            // Apply Approvals Override
+            try 
+            {
+                // Fetch ALL approvals (active and revoked) with User Info
+                // We want the LATEST action for each OrderId
+                var allApprovals = _mskDb.TBL_FINANS_ONAYs
+                    .Include(x => x.CreatedByUser)
+                    .Include(x => x.RevokedByUser)
+                    .OrderByDescending(x => x.CreatedDate) // Latest first? Or ID?
+                    .ToList();
+                
+                // Group by OrderId and take the first one (latest)
+                var approvalMap = allApprovals
+                    .GroupBy(x => x.OrderId.Trim(), StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                Console.WriteLine($"[Index] Loaded history for {approvalMap.Count} orders.");
+
+                foreach (var order in filteredList)
+                {
+                   if (!string.IsNullOrEmpty(order.OrderId) && approvalMap.ContainsKey(order.OrderId.Trim()))
+                   {
+                       var approval = approvalMap[order.OrderId.Trim()];
+                       if (!approval.IsRevoked)
+                       {
+                           order.Durum = "Onaylandı";
+                       }
+                       // If revoked, order.Durum remains what it was (e.g. "Onay Bekliyor" implicitly), but we have the info in approvalMap
+                   }
+                }
+                ViewBag.ApprovalMap = approvalMap;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Index] Error applying approvals: {ex.Message}");
+            }
+
             ViewBag.TotalFilteredAmount = filteredList.Sum(x => x.TotalAmountWithTax ?? 0);
             
             ViewBag.ActiveFilter = filter;
@@ -93,10 +133,8 @@ namespace UniCP.Controllers
             // Calculate Pending Payment (Bekleyen Bakiye > 0)
             var pendingOrders = filteredList.Where(x => x.Bekleyen_Bakiye > 0).ToList();
             ViewBag.PendingPayment = pendingOrders.Sum(x => x.Bekleyen_Bakiye ?? 0);
-            ViewBag.OverdueCount = pendingOrders.Count(x => x.Gecikme_Gun > 0);
-            ViewBag.WaitingForMaturityCount = pendingOrders.Count(x => x.Gecikme_Gun <= 0);
-
-            ViewBag.WaitingForMaturityCount = pendingOrders.Count(x => x.Gecikme_Gun <= 0);
+            ViewBag.OverdueCount = pendingOrders.Count(x => (x.Gecikme_Gun ?? 0) > 0);
+            ViewBag.WaitingForMaturityCount = pendingOrders.Count(x => (x.Gecikme_Gun ?? 0) <= 0);
 
             return View(filteredList);
         }
@@ -486,6 +524,108 @@ namespace UniCP.Controllers
             {
                 return Json(new { success = false, message = "Veri hatası: " + ex.Message });
             }
+        }
+        [HttpPost]
+        public IActionResult UpdatePO(string orderId, string poNumber)
+        {
+            try
+            {
+                Console.WriteLine($"[UpdatePO] Received OrderId: '{orderId}', PO: '{poNumber}'");
+
+                if (string.IsNullOrEmpty(orderId)) return Json(new { success = false, message = "Sipariş No boş olamaz." });
+                orderId = orderId.Trim();
+                Console.WriteLine($"[UpdatePO] Trimmed OrderId: '{orderId}'");
+
+                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                int? userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : null;
+
+                // Validate User ID exists to prevent FK Constraint Error
+                if (userId.HasValue)
+                {
+                    bool userExists = _mskDb.TBL_KULLANICIs.Any(u => u.LNGKOD == userId.Value);
+                    if (!userExists)
+                    {
+                         // Provide fallback or just nullify
+                         Console.WriteLine($"[UpdatePO] User ID {userId} not found in TBL_KULLANICI. Setting CreatedBy to null.");
+                         userId = null;
+                    }
+                }
+
+                var existing = _mskDb.TBL_FINANS_ONAYs.FirstOrDefault(x => x.OrderId == orderId);
+                Console.WriteLine($"[UpdatePO] Existing found: {existing != null}");
+                if (existing != null)
+                {
+                    existing.PONumber = poNumber;
+                    existing.CreatedDate = DateTime.Now;
+                    existing.CreatedBy = userId;
+                }
+                else
+                {
+                    var approval = new TBL_FINANS_ONAY
+                    {
+                        OrderId = orderId,
+                        PONumber = poNumber,
+                        CreatedDate = DateTime.Now,
+                        CreatedBy = userId
+                    };
+                    _mskDb.TBL_FINANS_ONAYs.Add(approval);
+                }
+
+                _mskDb.SaveChanges();
+                
+                return Json(new { success = true, message = "Sipariş onaylandı ve PO numarası kaydedildi." });
+            }
+            catch (Exception ex)
+            {
+                var innerMsg = ex.InnerException != null ? ex.InnerException.Message : "";
+                Console.WriteLine($"[UpdatePO] Error: {ex.Message} Inner: {innerMsg}");
+                return Json(new { success = false, message = "Db Hatası: " + ex.Message + " " + innerMsg });
+            }
+        }
+        [HttpPost]
+        public IActionResult RevokePO(string orderId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(orderId)) return Json(new { success = false, message = "Sipariş No boş olamaz." });
+                orderId = orderId.Trim();
+
+                var existing = _mskDb.TBL_FINANS_ONAYs.FirstOrDefault(x => x.OrderId == orderId && !x.IsRevoked);
+                if (existing != null)
+                {
+                    // Soft Delete
+                    existing.IsRevoked = true;
+                    existing.RevokedDate = DateTime.Now;
+
+                    var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                    int? userId = !string.IsNullOrEmpty(userIdStr) ? int.Parse(userIdStr) : null;
+                    
+                    // Validate User ID for FK
+                    if (userId.HasValue)
+                    {
+                        bool userExists = _mskDb.TBL_KULLANICIs.Any(u => u.LNGKOD == userId.Value);
+                        if (!userExists) userId = null;
+                    }
+                    existing.RevokedBy = userId;
+
+                    _mskDb.SaveChanges();
+                    return Json(new { success = true, message = "Onay başarıyla geri alındı." });
+                }
+
+                return Json(new { success = false, message = "Aktif onay kaydı bulunamadı." });
+            }
+            catch (Exception ex)
+            {
+                var inner = ex.InnerException != null ? ex.InnerException.Message : "";
+                return Json(new { success = false, message = "Hata oluştu: " + ex.Message + " " + inner });
+            }
+        }
+
+        [HttpGet]
+        public IActionResult DebugApprovals()
+        {
+            var approvals = _mskDb.TBL_FINANS_ONAYs.ToList();
+            return Json(approvals);
         }
     }
 }

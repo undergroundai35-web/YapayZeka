@@ -46,6 +46,8 @@ public partial class MskDbContext : DbContext
 
     public virtual DbSet<TBL_TALEP_NOTLAR> TBL_TALEP_NOTLARs { get; set; }
 
+    public virtual DbSet<TBL_FINANS_ONAY> TBL_FINANS_ONAYs { get; set; }
+
     public virtual DbSet<VIEW_N4BISSUE> VIEW_N4BISSUEs { get; set; }
 
     public virtual DbSet<VIEW_N4BISSUESLIFECYCLE> VIEW_N4BISSUESLIFECYCLEs { get; set; }

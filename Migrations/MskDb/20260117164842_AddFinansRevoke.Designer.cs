@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using UniCP.DbData;
 
@@ -11,9 +12,11 @@ using UniCP.DbData;
 namespace UniCP.Migrations.MskDb
 {
     [DbContext(typeof(MskDbContext))]
-    partial class MskDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260117164842_AddFinansRevoke")]
+    partial class AddFinansRevoke
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

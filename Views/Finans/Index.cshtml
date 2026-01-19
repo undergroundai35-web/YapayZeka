@@ -177,6 +177,49 @@
                             @foreach (var siparis in Model)
                             {
                                 <tr class="hover:bg-slate-700/50 transition-colors">
+                                    @{
+                                        UniCP.Models.MsK.TBL_FINANS_ONAY approvalRecord = null;
+                                        bool isApproval = false;
+                                        if (ViewBag.ApprovalMap != null)
+                                        {
+                                            var map = ViewBag.ApprovalMap as Dictionary<string, UniCP.Models.MsK.TBL_FINANS_ONAY>;
+                                            if (map != null && !string.IsNullOrEmpty(siparis.OrderId) && map.ContainsKey(siparis.OrderId.Trim()))
+                                            {
+                                                approvalRecord = map[siparis.OrderId.Trim()];
+                                                isApproval = !approvalRecord.IsRevoked;
+                                            }
+                                        }
+
+                                        // Determine Status
+                                        bool isApproved = string.Equals(siparis.Durum, "Onaylandı", StringComparison.OrdinalIgnoreCase) || isApproval;
+                                        bool isUnInvoiced = string.IsNullOrEmpty(siparis.SerialNumber);
+
+                                        string statusColor = "bg-blue-500/10 text-blue-400 border-blue-500/20"; // Default (Bekliyor)
+                                        string displayStatus = siparis.Durum ?? "Ödeme Bekleniyor";
+
+                                        if (isUnInvoiced && !isApproved)
+                                        {
+                                            // Uninvoiced and Not Approved -> Force "Onay Bekliyor"
+                                            displayStatus = "Onay Bekliyor";
+                                            statusColor = "bg-amber-500/10 text-amber-400 border-amber-500/20";
+                                        }
+                                        else if (isApproved)
+                                        {
+                                            // Approved (either from DB or Override)
+                                            displayStatus = "Onaylandı";
+                                            statusColor = "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+                                        }
+                                        else if ((siparis.Durum ?? "").Contains("Tahsil"))
+                                        {
+                                            statusColor = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
+                                        }
+                                        
+                                        // Assign Back for UI Logic downstream if needed
+                                        siparis.Durum = displayStatus;
+
+                                        var culture = new System.Globalization.CultureInfo("tr-TR");
+                                        var formattedStatus = culture.TextInfo.ToTitleCase(displayStatus.ToLower(culture));
+                                    }
                                     <td class="px-6 py-4">
                                         <span class="text-[11px] text-white">@siparis.SerialNumber</span>
                                     </td>
@@ -190,23 +233,28 @@
                                         <span class="text-[11px] font-bold text-emerald-400">@siparis.TotalAmountWithTax?.ToString("C2")</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        @{
-                                            var rawStatus = !string.IsNullOrEmpty(siparis.Durum) ? siparis.Durum : "Ödeme Bekleniyor";
-                                            var culture = new System.Globalization.CultureInfo("tr-TR");
-                                            var formattedStatus = culture.TextInfo.ToTitleCase(rawStatus.ToLower(culture));
-                                            
-                                            var colorClass = "bg-blue-500/10 text-blue-400 border-blue-500/20"; // Default (Bekliyor)
-                                            if (formattedStatus.Contains("Tahsil"))
-                                            {
-                                                colorClass = "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"; // Tahsil (Close to blue)
-                                            }
-                                        }
-                                        <span class="px-2 py-1 @colorClass text-[9px] font-bold rounded-lg border">@formattedStatus</span>
+                                        <span class="px-2.5 py-1 rounded-lg text-xs font-medium border @statusColor backdrop-blur-md shadow-sm">
+                                            @formattedStatus
+                                        </span>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <button onclick="viewOrderDetails('@siparis.OrderId')" class="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-all">
-                                            <i class="bi bi-eye"></i> Görüntüle
-                                        </button>
+                                        <div class="flex items-center gap-2">
+                                            <button onclick="viewOrderDetails('@siparis.OrderId')" class="px-3 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold rounded-lg border border-indigo-500/20 hover:bg-indigo-500/20 transition-all">
+                                                <i class="bi bi-eye"></i> Görüntüle
+                                            </button>
+                                            @if (isUnInvoiced && !isApproved)
+                                            {
+                                                <button onclick="openPOModal('@siparis.OrderId')" class="px-3 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-500/20 hover:bg-emerald-500/20 transition-all shadow-lg shadow-emerald-500/10" title="Onayla">
+                                                    <i class="bi bi-check-lg"></i> Onayla
+                                                </button>
+                                            }
+                                            else if (isApproved)
+                                            {
+                                                <button onclick="revokeOrder(this, '@siparis.OrderId')" class="px-3 py-1 bg-rose-500/10 text-rose-400 text-[10px] font-bold rounded-lg border border-rose-500/20 hover:bg-rose-500/20 transition-all shadow-lg shadow-rose-500/10" title="Onayı Geri Al">
+                                                    <i class="bi bi-arrow-counterclockwise"></i> Geri Al
+                                                </button>
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -242,6 +290,29 @@
         </div>
         <div id="orderDetailsContent" class="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
             <!-- Details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- PO Entry Modal -->
+<div id="poModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
+    @Html.AntiForgeryToken()
+    <div class="glass-panel bg-slate-900 rounded-2xl shadow-2xl border border-white/10 w-full max-w-sm overflow-hidden transform transition-all scale-100">
+        <div class="p-5">
+            <h3 class="text-lg font-semibold text-white mb-2">PO Numarası Giriniz</h3>
+            <p class="text-xs text-slate-400 mb-4">Bu sipariş için opsiyonel olarak bir satın alma (PO) numarası girebilirsiniz.</p>
+            
+            <input type="hidden" id="poOrderId" />
+            <input type="text" id="poInput" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors" placeholder="PO-12345..." autofocus />
+            
+            <div class="flex justify-end gap-3 mt-6">
+                <button onclick="closePOModal()" class="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors">
+                    İptal
+                </button>
+                <button onclick="submitPO()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/20 transition-all">
+                    Kaydet ve Onayla
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -416,40 +487,7 @@
     }
 
     function sendReconciliation() {
-        // Close menu
-        document.getElementById('actionMenu').classList.add('hidden');
-        
-        // Show loading (optional/simple)
-        const btn = document.querySelector('button[onclick="toggleActionMenu()"]');
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = '<span class="inline-block animate-spin mr-2"><i class="bi bi-arrow-clockwise"></i></span> İşleniyor...';
-        btn.disabled = true;
-
-        // Get filter params from URL or implicit defaults
-        const urlParams = new URLSearchParams(window.location.search);
-        const filter = urlParams.get('filter') || 'month';
-        const startDate = urlParams.get('startDate') || '';
-        const endDate = urlParams.get('endDate') || '';
-
-        fetch(`/Finans/SendReconciliation?filter=${filter}&startDate=${startDate}&endDate=${endDate}`, {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-            } else {
-                alert('Hata: ' + data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Bir bağlantı hatası oluştu.');
-        })
-        .finally(() => {
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        });
+        // ... existing code ...
     }
 
     // Close menu when clicking outside
@@ -476,5 +514,149 @@
                 window.history.replaceState({}, document.title, window.location.pathname);
             }, 500);
         }
-    });
+    }); 
+    // End of DOMContentLoaded
+
+    // Global Scope Functions
+    function openPOModal(orderId) {
+        document.getElementById('poOrderId').value = orderId;
+        document.getElementById('poInput').value = ''; // Changed from poNumber to poInput to match HTML
+        document.getElementById('poModal').classList.remove('hidden');
+        document.getElementById('poInput').focus(); // Changed from poNumber to poInput to match HTML
+    }
+
+    function closePOModal() {
+        document.getElementById('poModal').classList.add('hidden');
+    }
+
+    function submitPO() {
+        const orderId = document.getElementById('poOrderId').value;
+        const poNumber = document.getElementById('poInput').value; // Changed from poNumber to poInput to match HTML
+
+        if (!poNumber) {
+            alert('Lütfen PO Numarası giriniz.');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('orderId', orderId);
+        formData.append('poNumber', poNumber);
+        
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (tokenInput) {
+            formData.append('__RequestVerificationToken', tokenInput.value);
+        }
+
+        fetch('/Finans/UpdatePO', {
+            method: 'POST',
+            body: formData
+        })
+        .then(async response => {
+             const isJson = response.headers.get('content-type')?.includes('application/json');
+             const data = isJson ? await response.json() : null;
+             
+             if (!response.ok) {
+                 const error = (data && data.message) || response.statusText;
+                 return Promise.reject(error);
+             }
+             if (!isJson) return Promise.reject("Beklenmeyen sunucu yanıtı");
+
+             return data;
+        })
+        .then(data => {
+            if (data.success) {
+                closePOModal();
+                 // Show success toast
+                 const toast = document.createElement('div');
+                 toast.className = 'fixed top-4 right-4 bg-emerald-500/90 text-white px-4 py-3 rounded-xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3';
+                 toast.innerHTML = '<i class="bi bi-check-circle-fill"></i> Sipariş başarıyla onaylandı!';
+                 document.body.appendChild(toast);
+                 
+                 setTimeout(() => {
+                     // Update UI manually without reload or just reload
+                     location.reload(); 
+                     // Or smart update row:
+                     // document.querySelector(`tr[data-orderid="${orderId}"] .status-badge`).className = ...
+                 }, 1000);
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu: ' + error);
+        });
+    }
+
+    function revokeOrder(btn, orderId) {
+        // 2-Step Confirmation Logic
+        if (btn.dataset.confirm !== 'true') {
+            btn.dataset.confirm = 'true';
+            const originalContent = btn.innerHTML;
+            btn.dataset.original = originalContent; // Store original
+            
+            btn.innerHTML = '<i class="bi bi-question-circle"></i> Emin misin?';
+            btn.classList.remove('bg-rose-500/10', 'text-rose-400', 'border-rose-500/20');
+            btn.classList.add('bg-orange-500/20', 'text-orange-400', 'border-orange-500/30');
+
+            // Revert after 3 seconds
+            setTimeout(() => {
+                if (btn && btn.isConnected && btn.dataset.confirm === 'true') {
+                    btn.dataset.confirm = 'false';
+                    btn.innerHTML = originalContent;
+                    btn.classList.add('bg-rose-500/10', 'text-rose-400', 'border-rose-500/20');
+                    btn.classList.remove('bg-orange-500/20', 'text-orange-400', 'border-orange-500/30');
+                }
+            }, 3000);
+            return;
+        }
+
+        // Confirmed - Proceed
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        btn.disabled = true;
+
+        const formData = new FormData();
+        formData.append('orderId', orderId);
+        
+        const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+        if (tokenInput) {
+            formData.append('__RequestVerificationToken', tokenInput.value);
+        }
+
+        fetch('/Finans/RevokePO', {
+            method: 'POST',
+            body: formData
+        })
+        .then(async response => {
+             const isJson = response.headers.get('content-type')?.includes('application/json');
+             const data = isJson ? await response.json() : null;
+             
+             if (!response.ok) {
+                 const error = (data && data.message) || response.statusText;
+                 return Promise.reject(error);
+             }
+             if (!isJson) return Promise.reject("Beklenmeyen sunucu yanıtı");
+
+             return data;
+        })
+        .then(data => {
+            if (data.success) {
+                 const toast = document.createElement('div');
+                 toast.className = 'fixed top-4 right-4 bg-rose-500/90 text-white px-4 py-3 rounded-xl shadow-2xl z-[70] animate-in fade-in slide-in-from-top-4 duration-300 flex items-center gap-3';
+                 toast.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Onay geri alındı!';
+                 document.body.appendChild(toast);
+                 
+                 setTimeout(() => {
+                     location.reload(); 
+                 }, 1000);
+            } else {
+                alert('Hata: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Bir hata oluştu: ' + error);
+        });
+    }
 </script>
+```

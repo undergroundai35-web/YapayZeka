@@ -20,6 +20,8 @@ namespace UniCP.Controllers
             _mskDb = mskDb;
         }
 
+        [Route("Talepler")]
+        [Route("Talepler/Index")]
         public IActionResult Index()
         {
             // Auto-Migration for PO Column (Temporary for Dev)
@@ -57,6 +59,16 @@ namespace UniCP.Controllers
                               tfs.ACILMATARIHI >= startDate)
                 .ToList();
 
+            // Fetch Users for Mapping (Project Responsible Code -> Name)
+            var users = _mskDb.TBL_KULLANICIs
+                .Where(u => u.LNGIDENTITYKOD.HasValue)
+                .Select(u => new { Id = u.LNGIDENTITYKOD.Value.ToString(), Name = u.TXTADSOYAD })
+                .ToList();
+                
+            var userMap = users
+                .GroupBy(u => u.Id)
+                .ToDictionary(g => g.Key, g => g.First().Name);
+
             // 2. Fetch Portal Data (TBL_TALEP) - Includes "Shadow" records for TFS items and "Pure" portal requests
             // We preload Notes and Workflow Logs to avoid N+1
             var portalRequests = _mskDb.TBL_TALEPs
@@ -67,7 +79,8 @@ namespace UniCP.Controllers
             // Helper to find portal record for a TFS ID
             var portalMap = portalRequests
                 .Where(r => r.LNGTFSNO.HasValue && r.LNGTFSNO > 0)
-                .ToDictionary(r => r.LNGTFSNO.Value, r => r);
+                .GroupBy(r => r.LNGTFSNO.Value)
+                .ToDictionary(g => g.Key, g => g.First());
 
             // 3. Merge Data
             var viewModels = new List<Request>();
@@ -139,7 +152,9 @@ namespace UniCP.Controllers
                     Priority = "Orta",
                     Progress = baseProgress,
                     Budget = tfs.COST ?? "-",
-                    AssignedTo = "Atanmamış",
+                    AssignedTo = (!string.IsNullOrEmpty(tfs.MUSTERI_SORUMLUSU) && userMap.ContainsKey(tfs.MUSTERI_SORUMLUSU)) 
+                                    ? userMap[tfs.MUSTERI_SORUMLUSU] 
+                                    : (tfs.MUSTERI_SORUMLUSU ?? "Atanmamış"),
                     Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N0") + " K/G" : "-",
                     Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
                     Type = "Geliştirme",
@@ -151,7 +166,7 @@ namespace UniCP.Controllers
 
             // B. Add Portal-Only Requests (Not synced to TFS yet)
             var portalOnlyRequests = portalRequests
-                .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.LNGVARUNAKOD == firmaKod) // Only this company
+                .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.LNGVARUNAKOD == firmaKod && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1")) // Handle trailing spaces
                 .ToList();
 
             foreach (var req in portalOnlyRequests)
@@ -205,7 +220,7 @@ namespace UniCP.Controllers
                     Description = req.TXTTALEPACIKLAMA ?? "",
                     Status = status,
                     DevOpsStatus =("-"),
-                    Date = DateTime.Now.ToString("dd.MM.yyyy HH:mm"), // Fallback as TRHKAYIT is missing
+                    Date = (req.TRHKAYIT ?? DateTime.Now).ToString("dd.MM.yyyy HH:mm"),
                     LastModifiedDate = DateTime.Now.ToString("dd.MM.yyyy"),
                     PlanlananPyuat = "-",
                     GerceklesenPyuat = "-",
@@ -229,7 +244,12 @@ namespace UniCP.Controllers
             // But viewModels currently mixes them.
             // Let's sort by Date desc if possible. Since Date format is string, it's tricky.
             // But we inserted them in order. Let's put Portal Requests at the TOP.
-            viewModels = viewModels.OrderByDescending(x => x.Id.StartsWith("PORTAL")).ThenByDescending(x => x.Date).ToList();
+            // Sort by Date Descending (Newest First)
+            viewModels = viewModels.OrderByDescending(x => 
+            {
+                if(DateTime.TryParseExact(x.Date, "dd.MM.yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out DateTime dt)) return dt;
+                return DateTime.MinValue;
+            }).ToList();
 
             return View(viewModels);
         }
@@ -272,6 +292,12 @@ namespace UniCP.Controllers
             return Json(new { success = true });
         }
 
+        [HttpGet]
+        public IActionResult CreateRequest()
+        {
+            return View();
+        }
+
         [HttpPost]
         public IActionResult Create(string title, string description, decimal? effort, string assignees, string po)
         {
@@ -300,8 +326,8 @@ namespace UniCP.Controllers
             _mskDb.TBL_TALEPs.Add(talep);
             _mskDb.SaveChanges(); // to get LNGKOD
 
-            // 2. Create Initial Log (Analiz Status)
-            var statusStr = "Analiz";
+            // 2. Create Initial Log (Yeni Talep Status)
+            var statusStr = "Yeni Talep";
             var statusRecord = _mskDb.TBL_TALEP_AKISDURUMLARIs.FirstOrDefault(s => s.TXTDURUMADI == statusStr);
             if (statusRecord == null)
             {
@@ -504,6 +530,73 @@ namespace UniCP.Controllers
             return Json(new { success = true });
         }
 
+        [HttpPost]
+        public IActionResult Delete(string id)
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
+
+            var talep = GetOrCreateTalep(id, userId);
+            if (talep == null) return Json(new { success = false, message = "Talep bulunamadı" });
+
+            // Check conditions: Only "Portal" requests (not syned to TFS yet ideally) and Status "Analiz" (1st step)
+            // Or simpler: Check if it has TFS Number. If it has TFS Number, we can't delete easily.
+            // User requirement: "Yeni açılan talep silinebilmeli".
+
+            if (talep.LNGTFSNO.HasValue && talep.LNGTFSNO > 0)
+            {
+                return Json(new { success = false, message = "TFS ile senkronize olmuş talepler silinemez." });
+            }
+
+            // Check current status
+            var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
+                            .Where(l => l.LNGTALEPKOD == talep.LNGKOD)
+                            .OrderByDescending(l => l.TRHDURUMBASLANGIC)
+                            .Include(l => l.LNGDURUMKODNavigation)
+                            .FirstOrDefault();
+
+            string currentStatus = latestLog?.LNGDURUMKODNavigation?.TXTDURUMADI ?? "Analiz";
+
+            if (currentStatus != "Analiz" && currentStatus != "Yeni Talep")
+            {
+                 return Json(new { success = false, message = "Sadece 'Yeni Talep' veya 'Analiz' aşamasındaki talepler silinebilir." });
+            }
+
+            // Soft Delete or Hard Delete?
+            // Usually Soft Delete: BYTDURUM = 0
+            talep.BYTDURUM = "0"; // Passive
+            _mskDb.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        [HttpGet]
+        public IActionResult DebugRequests()
+        {
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
+            var kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
+            
+            var allRequests = _mskDb.TBL_TALEPs.ToList();
+            
+            return Json(new {
+                User = new {
+                    Id = userId,
+                    Name = kullanici?.TXTADSOYAD,
+                    FirmaKod = kullanici?.LNGORTAKFIRMAKOD,
+                    Email = kullanici?.TXTEMAIL
+                },
+                Requests = allRequests.Select(r => new {
+                    Id = r.LNGKOD,
+                    Title = r.TXTTALEPBASLIK,
+                    FirmaKod = r.LNGVARUNAKOD,
+                    TrhKayit = r.TRHKAYIT,
+                    TfsNo = r.LNGTFSNO,
+                    Durum = r.BYTDURUM
+                }).ToList()
+            });
+        }
+
         private TBL_TALEP? GetOrCreateTalep(string idStr, int userId)
         {
             // Handle Portal IDs
@@ -561,6 +654,7 @@ namespace UniCP.Controllers
         {
             return status switch
             {
+                "Yeni Talep" => 0,
                 "Analiz" => 15,
                 "Bütçe Onayı" => 30,
                 "Geliştirme" => 50,
