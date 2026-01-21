@@ -393,6 +393,35 @@
             </div>
         </div>
     </div>
+
+    <!-- Revision Note Modal (Inner) -->
+    <div id="revisionModal" class="hidden absolute inset-0 bg-black/60 backdrop-blur-sm z-[100000] flex items-center justify-center p-4">
+        <div class="bg-slate-900 rounded-3xl border border-white/10 shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+            <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-slate-800/50">
+                <h3 id="revisionModalTitle" class="text-lg font-medium text-white flex items-center gap-2">
+                    <i class="bi bi-exclamation-circle text-amber-500"></i>
+                    Revize İsteği
+                </h3>
+                <button onclick="closeRevisionModal()" class="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-slate-400 transition-colors">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <p id="revisionModalDesc" class="text-sm text-slate-400">
+                    Lütfen revize isteme nedeninizi kısaca açıklayınız. Bu not geliştirici ekibine iletilecektir.
+                </p>
+                <textarea id="revisionReasonInput" class="w-full h-32 bg-slate-800 border-2 border-slate-700/50 rounded-xl p-4 text-white text-sm focus:border-amber-500/50 focus:outline-none resize-none placeholder-slate-600 transition-all" placeholder="Örn: Buton rengi yanlış, şu kısımdaki hesaplama hatası..."></textarea>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-800/50 border-t border-white/5 flex justify-end gap-3">
+                <button id="btnCloseRevision" onclick="closeRevisionModal()" class="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition-colors">Vazgeç</button>
+                <button id="btnSubmitRevision" onclick="submitRevision()" class="px-6 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-xl transition-all shadow-lg shadow-amber-900/20 active:scale-95">
+                    Revize Gönder
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -933,10 +962,14 @@
         } else if (currentStage === 'Geliştirme') {
             buttons.push({ text: 'Geliştirmeyi Bitir', class: 'bg-orange-600 hover:bg-orange-700 text-white', icon: 'bi-code-slash', action: () => updateStatus('Proje Testi', 'Geliştirme tamamlandı, proje testine geçildi.') });
         } else if (currentStage === 'Proje Testi') {
+            // Show Note if exists (e.g. returned from revision)
+            if (currentModalRequest.lastRevisionNote) {
+                 buttons.push({ text: 'Revize Notu', class: 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20', icon: 'bi-sticky', action: () => showRevisionNote() });
+            }
             buttons.push({ text: 'Test Başarısız', class: 'bg-red-900/50 text-red-500 hover:bg-red-900/70', icon: 'bi-bug', action: () => updateStatus('Geliştirme', 'Testte hata bulundu, geliştirmeye geri gönderildi.') });
             buttons.push({ text: 'UAT\'a Gönder', class: 'bg-purple-600 hover:bg-purple-700 text-white', icon: 'bi-send', action: () => updateStatus('Müşteri UAT', 'Test başarılı, müşteri UAT onayına sunuldu.') });
         } else if (currentStage === 'Müşteri UAT') {
-            buttons.push({ text: 'Revize İste', class: 'bg-amber-600/20 text-amber-500 hover:bg-amber-600/30', icon: 'bi-exclamation-circle', action: () => updateStatus('Geliştirme', 'Müşteri revize istedi, sürece geri dönüldü.') });
+            buttons.push({ text: 'Revize İste', class: 'bg-amber-600/20 text-amber-500 hover:bg-amber-600/30', icon: 'bi-exclamation-circle', action: () => openRevisionModal() });
             buttons.push({ text: 'Canlıya Al', class: 'bg-emerald-600 hover:bg-emerald-700 text-white', icon: 'bi-rocket-takeoff', action: () => updateStatus('Canlıya Geçiş', 'Müşteri onayladı, canlıya geçiş yapıldı.') });
         } else if (currentStage === 'Canlıya Geçiş') {
             buttons.push({ text: 'Süreci Geri Al', class: 'bg-red-900/50 text-red-500 hover:bg-red-900/70', icon: 'bi-arrow-counterclockwise', action: () => updateStatus('Müşteri UAT', 'Canlıdan geri alındı, UAT aşamasına dönüldü.') });
@@ -1377,6 +1410,85 @@
             } else {
                 alert('Hata: ' + d.message);
             }
+        });
+    }
+    // --- Revision Logic ---
+    // --- Revision Logic ---
+    function openRevisionModal() {
+        const modal = document.getElementById('revisionModal');
+        modal.classList.remove('hidden');
+        
+        // Reset to Write Mode
+        document.getElementById('revisionModalTitle').innerHTML = '<i class="bi bi-exclamation-circle text-amber-500"></i> Revize İsteği';
+        document.getElementById('revisionModalDesc').innerText = 'Lütfen revize isteme nedeninizi kısaca açıklayınız. Bu not geliştirici ekibine iletilecektir.';
+        
+        const textarea = document.getElementById('revisionReasonInput');
+        textarea.value = '';
+        textarea.readOnly = false;
+        textarea.classList.remove('opacity-70', 'cursor-not-allowed');
+        textarea.focus();
+
+        document.getElementById('btnSubmitRevision').classList.remove('hidden');
+        document.getElementById('btnCloseRevision').innerText = 'Vazgeç';
+    }
+
+    function showRevisionNote() {
+        if (!currentModalRequest.lastRevisionNote) return;
+
+        const modal = document.getElementById('revisionModal');
+        modal.classList.remove('hidden');
+
+        // Set to Read-Only Mode
+        document.getElementById('revisionModalTitle').innerHTML = '<i class="bi bi-sticky text-amber-500"></i> Revize Notu';
+        document.getElementById('revisionModalDesc').innerText = 'Bu talep için son girilen revize notu:';
+        
+        const textarea = document.getElementById('revisionReasonInput');
+        textarea.value = currentModalRequest.lastRevisionNote;
+        textarea.readOnly = true;
+        textarea.classList.add('opacity-70', 'cursor-not-allowed');
+
+        document.getElementById('btnSubmitRevision').classList.add('hidden');
+        document.getElementById('btnCloseRevision').innerText = 'Kapat';
+    }
+
+    function closeRevisionModal() {
+        document.getElementById('revisionModal').classList.add('hidden');
+    }
+
+    function submitRevision() {
+        const reason = document.getElementById('revisionReasonInput').value.trim();
+        if (!reason) {
+            alert("Lütfen bir açıklama giriniz.");
+            return;
+        }
+
+        const btn = document.getElementById('btnSubmitRevision');
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split animate-spin"></i> Gönderiliyor...';
+
+        fetch('/Talepler/RequestRevision', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${encodeURIComponent(currentModalRequest.id)}&reason=${encodeURIComponent(reason)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeRevisionModal();
+                closeModal();
+                window.location.reload();
+            } else {
+                 alert("Hata: " + data.message);
+                 btn.disabled = false;
+                 btn.innerHTML = originalText;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Bir hata oluştu.");
+            btn.disabled = false;
+            btn.innerHTML = originalText;
         });
     }
 </script>

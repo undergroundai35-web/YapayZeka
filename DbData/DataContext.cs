@@ -12,4 +12,5 @@ public class DataContext : IdentityDbContext<AppUser, AppRole, int>
 
     }   
 
+    public DbSet<UniCP.Models.AI.AIServiceLog> AIServiceLogs { get; set; }
 }

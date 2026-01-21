@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
+using UniCP.Models.Kullanici;
 using UniCP.DbData;
 using UniCP.Models.Finans;
 using UniCP.Models.MsK;
@@ -16,11 +18,13 @@ namespace UniCP.Controllers
     {
         private readonly MskDbContext _mskDb;
         private readonly UniCP.Models.IEmailService _emailService;
+        private readonly UserManager<AppUser> _userManager;
 
-        public FinansController(MskDbContext mskDb, UniCP.Models.IEmailService emailService)
+        public FinansController(MskDbContext mskDb, UniCP.Models.IEmailService emailService, UserManager<AppUser> userManager)
         {
             _mskDb = mskDb;
             _emailService = emailService;
+            _userManager = userManager;
         }
 
         public IActionResult Index(string filter = "3months", DateTime? startDate = null, DateTime? endDate = null)
@@ -34,8 +38,31 @@ namespace UniCP.Controllers
             if (kullanici == null) return RedirectToAction("Login", "Account");
 
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+
+
+
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
+
+
 
             var varunaSiparisler = GetFilteredOrders(firmaKod, filter, startDate, endDate);
+
+            // DEBUG LOGGING SP RESULTS
+            try {
+                var rawCount = _mskDb.SP_VARUNA_SIPARIS(firmaKod).Count();
+                var filteredListDebug = varunaSiparisler.ToList();
+                var logMsg = $"DEBUG | Firma: {firmaKod} | Raw SP Count: {rawCount} | Filtered Count: {filteredListDebug.Count} | Filter: {filter} | Time: {DateTime.Now}\n";
+                if (filteredListDebug.Any()) {
+                    logMsg += $"Sample Order: {filteredListDebug[0].SerialNumber} | Date: {filteredListDebug[0].CreateOrderDate}\n";
+                }
+                System.IO.File.AppendAllText("debug_finans_data.txt", logMsg);
+            } catch (Exception ex) {
+                System.IO.File.AppendAllText("debug_finans_data.txt", $"DEBUG ERROR: {ex.Message}\n");
+            }
 
             // Calculate Previous Period Stats
             CalculateComparisonStats(firmaKod, filter, startDate, endDate, varunaSiparisler.Sum(x => x.TotalAmountWithTax ?? 0));
@@ -172,6 +199,11 @@ namespace UniCP.Controllers
             if (kullanici == null) return RedirectToAction("Login", "Account");
 
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
 
             var orders = GetFilteredOrders(firmaKod, filter, startDate, endDate).ToList();
 
@@ -320,6 +352,11 @@ namespace UniCP.Controllers
             if (kullanici == null) return RedirectToAction("Login", "Account");
 
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
             string firmaAdi = kullanici.TXTFIRMAADI ?? "";
 
             var orders = GetFilteredOrders(firmaKod, filter, startDate, endDate).ToList();
@@ -343,7 +380,13 @@ namespace UniCP.Controllers
             if (string.IsNullOrEmpty(kullanici.TXTEMAIL))
                 return Json(new { success = false, message = "Sistemde kayıtlı e-posta adresiniz bulunmuyor. Lütfen profil ayarlarına gidiniz." });
 
+            // Override with Project Selection
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
             string firmaAdi = kullanici.TXTFIRMAADI ?? "";
 
             try 
@@ -636,6 +679,29 @@ namespace UniCP.Controllers
                 var inner = ex.InnerException != null ? ex.InnerException.Message : "";
                 return Json(new { success = false, message = "Hata oluştu: " + ex.Message + " " + inner });
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Credits()
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return RedirectToAction("Login", "Account");
+            
+            ViewBag.CurrentBalance = user.TokenBalance;
+            return View();
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> PurchaseTokens(int amount)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Json(new { success = false, message = "Kullanıcı bulunamadı." });
+
+            // Demo Logic: Directly add tokens. In real app, integrate payment gateway here.
+            user.TokenBalance += amount;
+            await _userManager.UpdateAsync(user);
+
+            return Json(new { success = true, newBalance = user.TokenBalance, message = $"{amount} Token hesabınıza yüklendi." });
         }
 
         [HttpGet]

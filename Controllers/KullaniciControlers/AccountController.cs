@@ -142,17 +142,61 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
 
+    [HttpPost]
+    public async Task<IActionResult> PreLoginCheck([FromBody] AccountLoginModel model)
+    {
+        try
+        {
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user == null) return Json(new { success = false, message = "Kullanıcı bulunamadı." });
+
+            var check = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
+            if (!check.Succeeded) return Json(new { success = false, message = "Hatalı şifre." });
+
+            // Get User Type
+            var dbUser = await _mskDb.TBL_KULLANICIs.FirstOrDefaultAsync(u => u.LNGIDENTITYKOD == user.Id);
+            int type = dbUser?.LNGKULLANICITIPI ?? 0;
+
+            if (type == 1) // Admin / Internal can select company
+            {
+                var projects = await _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs
+                                        .OrderBy(x => x.TXTORTAKPROJEADI)
+                                        .Select(x => new { id = x.LNGKOD, name = x.TXTORTAKPROJEADI })
+                                        .ToListAsync();
+                
+                return Json(new { success = true, type = 1, projects = projects });
+            }
+
+            // Customer (Type 2 or others) - direct login
+            return Json(new { success = true, type = type });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = "Sunucu Hatası: " + ex.Message + " | " + ex.InnerException?.Message });
+        }
+    }
+
     public ActionResult Login()
     {
         if (User?.Identity?.IsAuthenticated ?? false)
         {
             return RedirectToAction("Index", "Musteri");
         }
+
+        try 
+        {
+            ViewBag.Projects = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs.OrderBy(x => x.TXTORTAKPROJEADI).ToList();
+        }
+        catch
+        {
+            ViewBag.Projects = new List<UniCP.Models.MsK.VIEW_ORTAK_PROJE_ISIMLERI>();
+        }
+
         return View();
     }
 
     [HttpPost]
-    public async Task<ActionResult> Login(AccountLoginModel model, string? returnUrl)
+    public async Task<ActionResult> Login(AccountLoginModel model, string? returnUrl, int? projectCode)
     {
         if (ModelState.IsValid)
         {
@@ -180,6 +224,30 @@ public class AccountController : Controller
                         }
                         // Add UserType Claim (1=Admin, 2=Customer)
                         claims.Add(new Claim("UserType", dbUser.LNGKULLANICITIPI?.ToString() ?? "0"));
+                    }
+
+                    // Add Selected Project Code Claim
+                    if (projectCode.HasValue)
+                    {
+                        claims.Add(new Claim("ProjectCode", projectCode.Value.ToString()));
+                        
+                        // Optional: Fetch Project Name for display if needed
+                        var projectName = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs
+                            .Where(p => p.LNGKOD == projectCode.Value)
+                            .Select(p => p.TXTORTAKPROJEADI)
+                            .FirstOrDefault();
+                            
+                        if (!string.IsNullOrEmpty(projectName))
+                        {
+                            claims.Add(new Claim("ProjectName", projectName));
+                        }
+                    }
+
+                    // Welcome Bonus: Give 1000 tokens if balance is 0
+                    if (user.TokenBalance <= 0)
+                    {
+                         user.TokenBalance = 1000;
+                         await _userManager.UpdateAsync(user);
                     }
 
                     // Sign in with additional claims
@@ -242,6 +310,18 @@ public class AccountController : Controller
         }
         
 
+
+
+
+        try 
+        {
+            ViewBag.Projects = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs.OrderBy(x => x.TXTORTAKPROJEADI).ToList();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Failed to fetch projects: {ex.Message} \n {ex.StackTrace}");
+            ViewBag.Projects = new List<UniCP.Models.MsK.VIEW_ORTAK_PROJE_ISIMLERI>();
+        }
 
         return View(model);
     }

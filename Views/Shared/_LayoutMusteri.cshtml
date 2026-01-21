@@ -1,9 +1,15 @@
-﻿@{
-    Layout = null;
-    bool aiEnabled = Configuration.GetValue<bool>("Gemini:Enabled");
-}
-@using Microsoft.Extensions.Configuration
+﻿@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Identity
+@using UniCP.Models.Kullanici
 @inject IConfiguration Configuration
+@inject UserManager<AppUser> UserManager
+
+@{
+    Layout = null;
+    bool aiEnabled = Configuration.GetValue<bool>("AI:Enabled");
+    var appUser = await UserManager.GetUserAsync(User);
+    var tokenBalance = appUser?.TokenBalance ?? 0;
+}
 
 <!DOCTYPE html>
 <html lang="tr" class="dark">
@@ -293,6 +299,8 @@
                             <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                         </label>
                     </div>
+
+                    <!-- Cüzdan & Token Link Removed -->
                 </div>
                 <div class="p-1 items-center bg-slate-900/50">
                      <a href="/Account/LogOut" onclick="sessionStorage.removeItem('uniCore_enabled'); sessionStorage.removeItem('uniCore_chatOpen');" class="flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors w-full">
@@ -330,6 +338,8 @@
 
             <!-- Right Actions -->
             <div class="flex items-center gap-4">
+                 <!-- Token Balance Badge -->
+                <!-- Token Balance Badge Removed -->
                 <div class="relative">
                     <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
                     <input type="text" placeholder="Ara..." class="bg-slate-800/50 border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-64 transition-all" />
@@ -581,7 +591,7 @@
         function executeAction(action, payload) {
             console.log(`Executing Action: ${action} -> ${payload}`);
             
-            if (action === 'navigate') {
+        if (action === 'navigate') {
                 setTimeout(() => {
                     window.location.href = payload;
                 }, 1000);
@@ -589,12 +599,19 @@
                 setTimeout(() => {
                     const link = document.createElement('a');
                     link.href = payload;
-                    // If the payload doesn't imply a download, we might want to target _blank
-                    // But for DownloadStatement it returns a file attachment
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
                 }, 1000);
+            } else if (action === 'openOrder') {
+                setTimeout(() => {
+                    if (typeof viewOrderDetails === 'function') {
+                        viewOrderDetails(payload);
+                    } else {
+                        console.error('viewOrderDetails function not found');
+                        appendMessage('bot', 'Üzgünüm, sipariş detaylarını şu an görüntüleyemiyorum.');
+                    }
+                }, 500);
             }
         }
 
@@ -624,6 +641,7 @@
 
     <!-- Bootstrap Bundle (Optional fallback for some components) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="Partials/_OrderDetailsModal" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

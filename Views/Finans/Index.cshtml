@@ -281,21 +281,6 @@
     </div>
 </div>
 
-<!-- Order Details Modal -->
-<div id="orderDetailsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="glass-panel bg-slate-800/95 rounded-[2rem] shadow-2xl border border-white/10 max-w-4xl w-full max-h-[80vh] overflow-hidden">
-        <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-white">Sipariş Detayları</h3>
-            <button onclick="closeOrderDetails()" class="w-8 h-8 rounded-xl bg-slate-700 hover:bg-slate-600 flex items-center justify-center text-slate-300 hover:text-white transition-all">
-                <i class="bi bi-x-lg"></i>
-            </button>
-        </div>
-        <div id="orderDetailsContent" class="p-6 overflow-y-auto max-h-[calc(80vh-80px)]">
-            <!-- Details will be loaded here -->
-        </div>
-    </div>
-</div>
-
 <!-- PO Entry Modal -->
 <div id="poModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4">
     @Html.AntiForgeryToken()
@@ -320,74 +305,6 @@
 </div>
 
 <script>
-    function viewOrderDetails(orderId) {
-        fetch(`/Finans/GetOrderDetails?orderId=${orderId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const content = document.getElementById('orderDetailsContent');
-                    content.innerHTML = `
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead>
-                                    <tr class="bg-slate-800/50 border-b border-white/5">
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Ürün</th>
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Miktar</th>
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Birim Fiyat</th>
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">İndirim</th>
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">KDV</th>
-                                        <th class="px-4 py-3 text-[10px] font-black text-slate-400 uppercase">Toplam</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5">
-                                    ${data.details.map(item => `
-                                        <tr class="hover:bg-slate-700/30 transition-colors">
-                                            <td class="px-4 py-3">
-                                                <span class="text-sm text-white font-medium">${item.productName || '-'}</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="text-[11px] text-slate-400">${item.quantity || 0} ${item.stockUnitType || ''}</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="text-[11px] text-slate-300">${(item.unitPrice || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
-                                            </td>
-                                            <td class="px-4 py-3">
-                                                <span class="text-xs text-orange-400">%${item.lineDiscountRate || 0}</span>
-                                            </td>
-                                            <td class="px-4 py-3">
-                                                <span class="text-xs text-slate-400">%${item.tax || 0}</span>
-                                            </td>
-                                            <td class="px-4 py-3 whitespace-nowrap">
-                                                <span class="text-[11px] font-bold text-emerald-400">${(item.netLineTotalWithTax || 0).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₺</span>
-                                            </td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    `;
-                    document.getElementById('orderDetailsModal').classList.remove('hidden');
-                } else {
-                    alert('Sipariş detayları yüklenemedi: ' + data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Bir hata oluştu');
-            });
-    }
-
-    function closeOrderDetails() {
-        document.getElementById('orderDetailsModal').classList.add('hidden');
-    }
-
-    // Close modal on outside click
-    document.getElementById('orderDetailsModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeOrderDetails();
-        }
-    });
-
     // --- Chart.js Implementation ---
     document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('productGroupChart');

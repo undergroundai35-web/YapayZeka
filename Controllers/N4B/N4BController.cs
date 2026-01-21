@@ -34,17 +34,36 @@ namespace UniCP.Controllers.N4B
 
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "test@univera.com.tr";
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
 
             // User specified: Pass 3 for 'BildirimTipi' to get Open tickets
             if (id == 0) id = 3; 
 
             DateTime trh = new DateTime(2025, 1, 1);
-            var bildirim_durum_sayı = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(firmaKod), email, trh);
-            
-            // Call SP with id=3 (or requested id) and implicitly trust it returns the correct set
-            var bildirimler = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, id)
-                .OrderByDescending(x => x.Bildirim_Tarihi)
-                .ToList();
+            var bildirim_durum_sayı = new List<SSP_N4B_TICKET_DURUM_SAYILARI>();
+            var bildirimler = new List<SSP_N4B_TICKETLARI>();
+            List<SSP_N4B_SLA_ORAN> slaList = new List<SSP_N4B_SLA_ORAN>();
+
+            try 
+            {
+                bildirim_durum_sayı = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(firmaKod), email, trh);
+                
+                // Call SP with id=3 (or requested id) and implicitly trust it returns the correct set
+                bildirimler = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, id)
+                    .OrderByDescending(x => x.Bildirim_Tarihi)
+                    .ToList();
+                
+                 slaList = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(firmaKod)).ToList();
+            }
+            catch (Exception)
+            {
+                // Silently fail for DB errors (Divide by Zero, etc.) to keep page accessible
+                // Default empty lists initialized above will be used
+            }
 
             ViewBag.toplambildirim = bildirim_durum_sayı.Select(i => i.Sayi).Sum();
             ViewBag.acikbildirimsayi = bildirim_durum_sayı.Where(i => i.Durum.Contains("Açık")).Select(i => i.Sayi).Sum();
@@ -52,7 +71,7 @@ namespace UniCP.Controllers.N4B
             ViewBag.cagrimerkezisayi = bildirim_durum_sayı.Where(i => i.Durum.Contains("Telefon")).Select(i => i.Sayi).Sum();
             ViewBag.yazilimdesteksayi = bildirim_durum_sayı.Where(i => i.Durum.Contains("Email")).Select(i => i.Sayi).Sum();
             
-            ViewBag.SLA = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(firmaKod)).ToList();
+            ViewBag.SLA = slaList;
 
             return View(bildirimler);
         }

@@ -176,8 +176,26 @@ namespace UniCP.Controllers
             string firmaAdi = kullanici.TXTFIRMAADI ?? "";
 
             // 1. Fetch TFS Data
+            // 1. Fetch TFS Data
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
             var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
+
+            // DEBUG LOGGING PROJECTS
+            try {
+                var allProj = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs.ToList();
+                var projDump = string.Join("\n", allProj.Select(p => $"ID: {p.LNGKOD} | Name: {p.TXTORTAKPROJEADI}"));
+                System.IO.File.WriteAllText("debug_projects.txt", projDump);
+                
+                var rawCount = liveTfsRequests.Count();
+                System.IO.File.AppendAllText("debug_raporlar_data.txt", $"DEBUG | Firma: {firmaKod} | Raw TFS Count: {rawCount} | Period: {period} | Time: {DateTime.Now}\n");
+            } catch (Exception ex) {
+                System.IO.File.AppendAllText("debug_raporlar_data.txt", $"DEBUG ERROR: {ex.Message}\n");
+            }
 
             // Filtering Logic
             DateTime startDate;
@@ -452,6 +470,11 @@ namespace UniCP.Controllers
 
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "test@univera.com.tr";
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                firmaKod = selectedProject;
+            }
 
             // Fetch Data using SP_N4B_TICKETLARI
             var allTickets = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, 0);

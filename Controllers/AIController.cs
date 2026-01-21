@@ -7,12 +7,12 @@ namespace UniCP.Controllers
 {
     public class AIController : Controller
     {
-        private readonly UniCP.Services.GeminiService _geminiService;
+        private readonly UniCP.Services.AI.AIService _aiService;
         private readonly MskDbContext _mskDb;
 
-        public AIController(UniCP.Services.GeminiService geminiService, MskDbContext mskDb)
+        public AIController(UniCP.Services.AI.AIService aiService, MskDbContext mskDb)
         {
-            _geminiService = geminiService;
+            _aiService = aiService;
             _mskDb = mskDb;
         }
 
@@ -29,18 +29,32 @@ namespace UniCP.Controllers
             int firmaKod = 2; // Default
             string kullaniciAdi = "Misafir";
             string userEmail = "";
+            int userIdInt = 0;
             TBL_KULLANICI? kullanici = null;
 
             if (!string.IsNullOrEmpty(userIdStr) && int.TryParse(userIdStr, out int userId))
             {
+                userIdInt = userId;
                 kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
                 if (kullanici != null)
                 {
                     firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+                    var projectClaim = User.FindFirst("ProjectCode");
+                    if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+                    {
+                        firmaKod = selectedProject;
+                    }
                     kullaniciAdi = kullanici.TXTADSOYAD ?? "Kullanıcı";
                     userEmail = kullanici.TXTEMAIL;
                 }
             }
+            
+            // If user is not logged in / mapped, block or handle appropriately
+            if (userIdInt == 0)
+            {
+                 return Json(new { text = "AI servisini kullanmak için giriş yapmalısınız." });
+            }
+
 
             // Fetch Orders (Using the Stored Procedure mapped in DbContext)
             // We fetch all for the company and filter in memory for the context summary
@@ -116,14 +130,14 @@ namespace UniCP.Controllers
             {recentOrdersText}
             ";
 
-            // 3. Generate Response with Context
-            var response = await _geminiService.GenerateResponseAsync(request.Message, contextData);
+            // 3. Generate Response with Context via AIService
+            var response = await _aiService.ProcessRequestAsync(userIdInt, request.Message, contextData);
             return Json(new { text = response.Text, action = response.Action, payload = response.Payload });
         }
 
         public class ChatRequest
         {
-            public string Message { get; set; }
+            public string Message { get; set; } = string.Empty;
         }
     }
 }

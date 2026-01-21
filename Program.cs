@@ -12,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddTransient<IEmailService, SmtpEmailService>();
 builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddTransient<UniCP.Services.GeminiService>();
+builder.Services.AddSingleton<UniCP.Services.AI.OllamaService>();
+builder.Services.AddScoped<UniCP.Services.AI.AIService>();
 
 // Performance Optimization: Response Compression
 builder.Services.AddResponseCompression(options =>

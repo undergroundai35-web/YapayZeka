@@ -86,12 +86,15 @@
                 }
 
                 <div class="space-y-5">
+                    <!-- Hidden Project Code Input -->
+                    <input type="hidden" name="projectCode" id="project-code-hidden">
+
                     <!-- Email -->
                     <div>
-                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Email</label>
+                        <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">EMAIL</label>
                         <div class="relative">
                             <i class="bi bi-person absolute left-4 top-3.5 text-slate-500"></i>
-                            <input type="email" name="email" required 
+                            <input type="email" id="email" name="email" required 
                                    class="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-sm text-white placeholder-slate-600 outline-none" 
                                    placeholder="kullanici@univera.com.tr" />
                         </div>
@@ -102,20 +105,191 @@
                         <label class="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Password</label>
                         <div class="relative">
                             <i class="bi bi-lock absolute left-4 top-3.5 text-slate-500"></i>
-                            <input type="password" name="password" required 
+                            <input type="password" id="password" name="password" required 
                                    class="w-full pl-11 pr-4 py-3.5 rounded-xl glass-input text-sm text-white placeholder-slate-600 outline-none" 
                                    placeholder="••••••••" />
                         </div>
                     </div>
-                </div>
 
-                <!-- Options -->
-                <div class="flex items-center justify-between pt-2">
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="remember" class="w-4 h-4 rounded border-slate-600 bg-slate-800 text-indigo-600 focus:ring-indigo-500 focus:ring-offset-slate-900">
-                        <label for="remember" class="text-xs text-slate-400">Remember me</label>
+                    <!-- Company Selection Modal -->
+                    <div id="company-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+                        <div class="bg-[#1E293B] border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="company-modal-content">
+                            <!-- Header -->
+                            <div class="p-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
+                                <h3 class="text-lg font-semibold text-white">Firma Seçimi</h3>
+                                <button type="button" id="close-modal" class="text-slate-400 hover:text-white transition-colors">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                            
+                            <!-- Search -->
+                            <div class="p-4 border-b border-slate-700/50 bg-[#0F172A]/50">
+                                <div class="relative">
+                                    <i class="bi bi-search absolute left-4 top-3.5 text-slate-500"></i>
+                                    <input type="text" id="company-search" placeholder="Firma Ara..." 
+                                           class="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
+                                </div>
+                            </div>
+
+                            <!-- List -->
+                            <div class="max-h-[300px] overflow-y-auto p-2" id="company-list-container">
+                                <!-- Items will be injected here -->
+                                <div class="p-4 text-center text-slate-500 text-sm hidden" id="modal-no-results">Sonuç bulunamadı</div>
+                            </div>
+
+                            <!-- Footer -->
+                             <div class="p-4 border-t border-slate-700/50 bg-slate-800/50 flex justify-end gap-3">
+                                <button type="button" id="cancel-selection" 
+                                        class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                                    İptal
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <a href="/Account/ForgotPassword" class="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">Forgot password?</a>
+
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const loginForm = document.querySelector('form');
+                            const emailInput = document.getElementById('email');
+                            const passwordInput = document.getElementById('password');
+                            const hiddenProjectCode = document.getElementById('project-code-hidden');
+                            
+                            const modal = document.getElementById('company-modal');
+                            const modalContent = document.getElementById('company-modal-content');
+                            const companyListContainer = document.getElementById('company-list-container');
+                            const companySearch = document.getElementById('company-search');
+                            const closeModalBtn = document.getElementById('close-modal');
+                            const cancelBtn = document.getElementById('cancel-selection');
+                            
+                            let companies = [];
+                            let isAuthenticating = false;
+
+                            // Global UI State
+                            const submitBtn = loginForm.querySelector('button[type="submit"]');
+                            const originalBtnContent = submitBtn.innerHTML;
+
+                            function resetLoginUI() {
+                                submitBtn.innerHTML = originalBtnContent;
+                                submitBtn.disabled = false;
+                                isAuthenticating = false;
+                            }
+
+                            // Custom Login Handler
+                            loginForm.addEventListener('submit', async function(e) {
+                                // If validation passed and we are submitting for real (after selection or direct), let it submit
+                                if (loginForm.getAttribute('data-submitting') === 'true') return;
+
+                                e.preventDefault();
+                                
+                                if (isAuthenticating) return;
+                                isAuthenticating = true;
+
+                                // Loading State
+                                submitBtn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span> Checking...';
+                                submitBtn.disabled = true;
+
+                                try {
+                                    const response = await fetch('/Account/PreLoginCheck', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            email: emailInput.value,
+                                            password: passwordInput.value
+                                        })
+                                    });
+
+                                    const result = await response.json();
+
+                                    if (!result.success) {
+                                        alert(result.message || 'Giriş hatası');
+                                        resetLoginUI();
+                                        return;
+                                    }
+
+                                    if (result.type === 1) {
+                                        // Admin/Internal -> Show Company Selection
+                                        companies = result.projects || [];
+                                        renderCompanies(companies);
+                                        openModal();
+                                        resetLoginUI(); 
+                                    } else {
+                                        // Customer -> Login Direct
+                                        loginForm.setAttribute('data-submitting', 'true');
+                                        loginForm.submit();
+                                    }
+
+                                } catch (error) {
+                                    console.error('Login error:', error);
+                                    alert('Bir hata oluştu. Lütfen tekrar deneyiniz.');
+                                    resetLoginUI();
+                                }
+                            });
+
+                            // Modal Logic
+                            function openModal() {
+                                modal.classList.remove('hidden');
+                                setTimeout(() => {
+                                    modal.classList.remove('opacity-0');
+                                    modalContent.classList.remove('scale-95');
+                                    modalContent.classList.add('scale-100');
+                                }, 10);
+                                companySearch.value = '';
+                                companySearch.focus();
+                            }
+
+                            function closeModal() {
+                                modal.classList.add('opacity-0');
+                                modalContent.classList.remove('scale-100');
+                                modalContent.classList.add('scale-95');
+                                setTimeout(() => {
+                                    modal.classList.add('hidden');
+                                }, 300);
+                                resetLoginUI(); // Ensure button is reset when modal closes
+                            }
+
+                            [closeModalBtn, cancelBtn].forEach(btn => {
+                                if(btn) btn.addEventListener('click', closeModal);
+                            });
+
+                            function renderCompanies(list) {
+                                companyListContainer.innerHTML = '';
+                                if(list.length === 0) {
+                                     document.getElementById('modal-no-results').classList.remove('hidden');
+                                     return;
+                                }
+                                document.getElementById('modal-no-results').classList.add('hidden');
+
+                                list.forEach(comp => {
+                                    const el = document.createElement('div');
+                                    el.className = 'p-3 hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors border-b border-slate-800/30 last:border-0 flex items-center justify-between group';
+                                    el.innerHTML = `
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                                <i class="bi bi-building"></i>
+                                            </div>
+                                            <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">${comp.name}</span>
+                                        </div>
+                                        <i class="bi bi-chevron-right text-slate-600 group-hover:text-white text-xs"></i>
+                                    `;
+                                    el.onclick = () => selectCompany(comp.id);
+                                    companyListContainer.appendChild(el);
+                                });
+                            }
+
+                            function selectCompany(id) {
+                                hiddenProjectCode.value = id;
+                                loginForm.setAttribute('data-submitting', 'true');
+                                loginForm.submit();
+                            }
+
+                            // Search Filter
+                            companySearch.addEventListener('input', (e) => {
+                                const term = e.target.value.toLowerCase();
+                                const filtered = companies.filter(c => c.name.toLowerCase().includes(term));
+                                renderCompanies(filtered);
+                            });
+                        });
+                    </script>
                 </div>
 
                 <!-- Submit Button -->
@@ -136,12 +310,185 @@
         </div>
     </div>
 
-    <!-- Fixed Footer Branding -->
-    <div class="fixed bottom-6 right-8 z-50">
-        <p class="text-[10px] text-white opacity-40 hover:opacity-100 transition-opacity cursor-default tracking-widest uppercase font-semibold">
-            Created by UNIVERA AI Team
-        </p>
+    <!-- Company Selection Modal (Moved Outside Form) -->
+    <div id="company-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-[#1E293B] border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden transform scale-95 transition-transform duration-300" id="company-modal-content">
+            <!-- Header -->
+            <div class="p-6 border-b border-slate-700/50 flex justify-between items-center bg-slate-800/50">
+                <h3 class="text-lg font-semibold text-white">Firma Seçimi</h3>
+                <button type="button" id="close-modal" class="text-slate-400 hover:text-white transition-colors">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            
+            <!-- Company Search and List -->
+            <div class="p-4 border-b border-slate-700/50 bg-[#0F172A]/50">
+                <div class="relative">
+                    <i class="bi bi-search absolute left-4 top-3.5 text-slate-500"></i>
+                    <input type="text" id="company-search" placeholder="Firma Ara..." 
+                           class="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-800 border border-slate-700 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
+                </div>
+            </div>
+
+            <div class="max-h-[300px] overflow-y-auto p-2" id="company-list-container">
+                <div class="p-4 text-center text-slate-500 text-sm hidden" id="modal-no-results">Sonuç bulunamadı</div>
+            </div>
+
+            <div class="p-4 border-t border-slate-700/50 bg-slate-800/50 flex justify-end gap-3">
+                <button type="button" id="cancel-selection" 
+                        class="px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700 transition-colors">
+                    İptal
+                </button>
+            </div>
+        </div>
     </div>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.querySelector('form');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const hiddenProjectCode = document.getElementById('project-code-hidden');
+            
+            const modal = document.getElementById('company-modal');
+            const modalContent = document.getElementById('company-modal-content');
+            const companyListContainer = document.getElementById('company-list-container');
+            const companySearch = document.getElementById('company-search');
+            const closeModalBtn = document.getElementById('close-modal');
+            const cancelBtn = document.getElementById('cancel-selection');
+            
+            let companies = [];
+            let isAuthenticating = false;
+
+            // Submit Handler
+            loginForm.addEventListener('submit', async function(e) {
+                if (loginForm.getAttribute('data-submitting') === 'true') return;
+
+                e.preventDefault();
+                
+                if (isAuthenticating) return;
+                isAuthenticating = true;
+
+                const submitBtn = loginForm.querySelector('button[type="submit"]');
+                const originalBtnText = submitBtn.innerHTML;
+                
+                // Loading State
+                submitBtn.innerHTML = '<span class="animate-spin inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></span> Checking...';
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/Account/PreLoginCheck', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            email: emailInput.value,
+                            password: passwordInput.value
+                        })
+                    });
+
+                    if (!response.ok) {
+                         throw new Error('Network response was not ok: ' + response.statusText);
+                    }
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        alert(result.message || 'Giriş hatası');
+                        resetButton();
+                        return;
+                    }
+
+                    if (result.type === 1) {
+                        // Admin/Internal -> Show Company Modal
+                        companies = result.projects || [];
+                        renderCompanies(companies);
+                        openModal();
+                        resetButton(); // Reset button so they can see the modal
+                    } else {
+                        // Customer -> Submit directly
+                        loginForm.setAttribute('data-submitting', 'true');
+                        loginForm.submit();
+                    }
+
+                } catch (error) {
+                    console.error('Login error:', error);
+                    alert('Bir hata oluştu: ' + error.message);
+                    resetButton();
+                }
+
+                function resetButton() {
+                    submitBtn.innerHTML = originalBtnText;
+                    submitBtn.disabled = false;
+                    isAuthenticating = false;
+                }
+            });
+
+            // Modal Logic
+            function openModal() {
+                modal.classList.remove('hidden');
+                // Small delay to allow display flow
+                requestAnimationFrame(() => {
+                    modal.classList.remove('opacity-0');
+                    modalContent.classList.remove('scale-95');
+                    modalContent.classList.add('scale-100');
+                    companySearch.focus();
+                });
+            }
+
+            function closeModal() {
+                modal.classList.add('opacity-0');
+                modalContent.classList.remove('scale-100');
+                modalContent.classList.add('scale-95');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                }, 300);
+            }
+
+            if(closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+            if(cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+            function renderCompanies(list) {
+                companyListContainer.innerHTML = '';
+                const noResults = document.getElementById('modal-no-results');
+                
+                if(!list || list.length === 0) {
+                     if(noResults) noResults.classList.remove('hidden');
+                     return;
+                }
+                if(noResults) noResults.classList.add('hidden');
+
+                list.forEach(comp => {
+                    const el = document.createElement('div');
+                    el.className = 'p-3 hover:bg-slate-700/50 rounded-lg cursor-pointer transition-colors border-b border-slate-800/30 last:border-0 flex items-center justify-between group';
+                    el.innerHTML = `
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-400 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">${comp.name}</span>
+                        </div>
+                        <i class="bi bi-chevron-right text-slate-600 group-hover:text-white text-xs"></i>
+                    `;
+                    el.onclick = () => selectCompany(comp.id);
+                    companyListContainer.appendChild(el);
+                });
+            }
+
+            function selectCompany(id) {
+                hiddenProjectCode.value = id;
+                loginForm.setAttribute('data-submitting', 'true');
+                loginForm.submit();
+                closeModal();
+            }
+
+            if(companySearch) {
+                companySearch.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    const filtered = companies.filter(c => c.name.toLowerCase().includes(term));
+                    renderCompanies(filtered);
+                });
+            }
+        });
+    </script>
 </body>
 </html>

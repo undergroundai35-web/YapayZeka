@@ -24,13 +24,17 @@ namespace UniCP.Controllers
         [Route("Talepler/Index")]
         public IActionResult Index()
         {
-            // Auto-Migration for PO Column (Temporary for Dev)
             try
             {
-               _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'TXT_PO' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD TXT_PO VARCHAR(50) NULL; END");
-               _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'TRHKAYIT' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD TRHKAYIT DATETIME NULL DEFAULT GETDATE(); END");
-            } catch { /* Ignore permissions/errors */ }
-
+                // Auto-Migration for PO Column (Temporary for Dev)
+                try
+                {
+                   _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'TXT_PO' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD TXT_PO VARCHAR(50) NULL; END");
+                   _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'TRHKAYIT' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD TRHKAYIT DATETIME NULL DEFAULT GETDATE(); END");
+                   _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'INT_ANKET_PUAN' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD INT_ANKET_PUAN INT NULL; END");
+                   _mskDb.Database.ExecuteSqlRaw("IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE Name = N'TXT_ANKET_NOT' AND Object_ID = Object_ID(N'TBL_TALEP')) BEGIN ALTER TABLE TBL_TALEP ADD TXT_ANKET_NOT VARCHAR(500) NULL; END");
+                } catch { /* Ignore permissions/errors */ }
+    
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdStr)) return RedirectToAction("Login", "Account");
 
@@ -42,83 +46,177 @@ namespace UniCP.Controllers
                 return View(new List<Request>());
             }
 
-            // 1. Fetch TFS Data (System of Record for "External" Requests)
+            // Determine Company Code (Use Claim if available, else fallback to User Profile)
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
-            var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
-
-            // Filter TFS Data
-            var startDate = new DateTime(2025, 1, 1);
-            var filteredTfs = liveTfsRequests
-                .Where(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "CANCEL", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "CANCELED", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "SEND BACK", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "SEND-BACK", StringComparison.OrdinalIgnoreCase) &&
-                              !string.Equals(tfs.MADDEDURUM, "REJECTED", StringComparison.OrdinalIgnoreCase) &&
-                              tfs.ACILMATARIHI >= startDate)
-                .ToList();
-
-            // Fetch Users for Mapping (Project Responsible Code -> Name)
-            var users = _mskDb.TBL_KULLANICIs
-                .Where(u => u.LNGIDENTITYKOD.HasValue)
-                .Select(u => new { Id = u.LNGIDENTITYKOD.Value.ToString(), Name = u.TXTADSOYAD })
-                .ToList();
-                
-            var userMap = users
-                .GroupBy(u => u.Id)
-                .ToDictionary(g => g.Key, g => g.First().Name);
-
-            // 2. Fetch Portal Data (TBL_TALEP) - Includes "Shadow" records for TFS items and "Pure" portal requests
-            // We preload Notes and Workflow Logs to avoid N+1
-            var portalRequests = _mskDb.TBL_TALEPs
-                .Include(t => t.TBL_TALEP_NOTLARs)
-                .Include(t => t.TBL_TALEP_FILEs)
-                .ToList();
-
-            // Helper to find portal record for a TFS ID
-            var portalMap = portalRequests
-                .Where(r => r.LNGTFSNO.HasValue && r.LNGTFSNO > 0)
-                .GroupBy(r => r.LNGTFSNO.Value)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            // 3. Merge Data
-            var viewModels = new List<Request>();
-
-            // A. Add TFS Requests
-            foreach (var tfs in filteredTfs)
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
             {
-                var id = "TFS-" + tfs.TFSNO;
-                var baseStatus = "Analiz"; // Default to Analiz as per user request
-                var baseProgress = tfs.TAMAMLANMA_OARANI.HasValue ? (int)tfs.TAMAMLANMA_OARANI.Value : 0;
+                firmaKod = selectedProject;
+            }
 
-                // Portal Override Logic
-                var portalRecord = portalMap.ContainsKey(tfs.TFSNO) ? portalMap[tfs.TFSNO] : null;
-                var comments = new List<Comment>();
-                
-                if (portalRecord != null)
+
+
+            // 1. Fetch TFS Data (System of Record for "External" Requests)
+            List<SSP_TFS_GELISTIRME> filteredTfs = new List<SSP_TFS_GELISTIRME>();
+
+            try 
+            {
+                var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
+
+                // Filter TFS Data
+                var startDate = new DateTime(2025, 1, 1);
+                filteredTfs = liveTfsRequests
+                    .Where(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "CANCEL", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "CANCELED", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "SEND BACK", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "SEND-BACK", StringComparison.OrdinalIgnoreCase) &&
+                                    !string.Equals(tfs.MADDEDURUM, "REJECTED", StringComparison.OrdinalIgnoreCase) &&
+                                    tfs.ACILMATARIHI >= startDate)
+                        .ToList();
+                }
+                catch (Exception)
                 {
-                    // Check for latest status in Access Log
-                    var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
-                        .Where(l => l.LNGTALEPKOD == portalRecord.LNGKOD)
-                        .OrderByDescending(l => l.TRHDURUMBASLANGIC)
-                        .Include(l => l.LNGDURUMKODNavigation)
-                        .FirstOrDefault();
-
-                    if (latestLog != null && latestLog.LNGDURUMKODNavigation != null)
+                    // Silently fail for TFS data if DB error (e.g. Divide by Zero)
+                    // This prevents the whole page from crashing
+                }
+    
+                // Fetch Users for Mapping (Project Responsible Code -> Name)
+                var users = _mskDb.TBL_KULLANICIs
+                    .Where(u => u.LNGIDENTITYKOD.HasValue)
+                    .Select(u => new { Id = u.LNGIDENTITYKOD.Value.ToString(), Name = u.TXTADSOYAD })
+                    .ToList();
+                    
+                var userMap = users
+                    .GroupBy(u => u.Id)
+                    .ToDictionary(g => g.Key, g => g.First().Name);
+    
+                // 2. Fetch Portal Data (TBL_TALEP) - Includes "Shadow" records for TFS items and "Pure" portal requests
+                // We preload Notes and Workflow Logs to avoid N+1
+                var portalRequests = _mskDb.TBL_TALEPs
+                    .Include(t => t.TBL_TALEP_NOTLARs)
+                    .Include(t => t.TBL_TALEP_FILEs)
+                    .ToList();
+    
+                // Helper to find portal record for a TFS ID
+                var portalMap = portalRequests
+                    .Where(r => r.LNGTFSNO.HasValue && r.LNGTFSNO > 0)
+                    .GroupBy(r => r.LNGTFSNO.Value)
+                    .ToDictionary(g => g.Key, g => g.First());
+    
+                // 3. Merge Data
+                var viewModels = new List<Request>();
+    
+                // A. Add TFS Requests
+                foreach (var tfs in filteredTfs)
+                {
+                    var id = "TFS-" + tfs.TFSNO;
+                    var baseStatus = "Analiz"; // Default to Analiz as per user request
+                    var baseProgress = tfs.TAMAMLANMA_OARANI.HasValue ? (int)tfs.TAMAMLANMA_OARANI.Value : 0;
+    
+                    // Portal Override Logic
+                    var portalRecord = portalMap.ContainsKey(tfs.TFSNO) ? portalMap[tfs.TFSNO] : null;
+                    var comments = new List<Comment>();
+                    
+                    if (portalRecord != null)
                     {
-                        baseStatus = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
-                        baseProgress = GetProgressForStatus(baseStatus);
+                        // Check for latest status in Access Log
+                        var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
+                            .Where(l => l.LNGTALEPKOD == portalRecord.LNGKOD)
+                            .OrderByDescending(l => l.TRHDURUMBASLANGIC)
+                            .Include(l => l.LNGDURUMKODNavigation)
+                            .FirstOrDefault();
+    
+                        if (latestLog != null && latestLog.LNGDURUMKODNavigation != null)
+                        {
+                            baseStatus = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
+                            baseProgress = GetProgressForStatus(baseStatus);
+                        }
+
+                        // SELF-HEALING: If status is not "Canlıya Geçiş", clear survey data
+                        if (baseStatus != "Canlıya Geçiş" && (portalRecord.INT_ANKET_PUAN != null || !string.IsNullOrEmpty(portalRecord.TXT_ANKET_NOT)))
+                        {
+                            portalRecord.INT_ANKET_PUAN = null;
+                            portalRecord.TXT_ANKET_NOT = null;
+                            _mskDb.SaveChanges();
+                        }
+    
+                        // Comments
+                        if (portalRecord.TBL_TALEP_NOTLARs != null)
+                        {
+                            foreach (var note in portalRecord.TBL_TALEP_NOTLARs)
+                            {
+                                 var noteUser = _mskDb.TBL_KULLANICIs.FirstOrDefault(u => u.LNGIDENTITYKOD == note.LNGKULLANICIKOD);
+                                 var userName = noteUser?.TXTADSOYAD ?? "Kullanıcı";
+    
+                                comments.Add(new Comment
+                                {
+                                    Id = note.LNGKOD.ToString(),
+                                    Text = note.TXTNOT ?? "",
+                                    User = userName,
+                                    Date = "Not Tarihi Yok" 
+                                });
+                            }
+                        }
                     }
-
-                    // Comments
-                    if (portalRecord.TBL_TALEP_NOTLARs != null)
+    
+                    // Fix progress for display
+                    if (baseProgress == 100 && (baseStatus == "Analiz" || baseStatus == "ACTIVE")) baseProgress = 15;
+                    if (baseProgress == 0 && baseStatus == "Analiz") baseProgress = 15;
+    
+                    decimal? yazilimInfo = tfs.YAZILIM_TOPLAMAG;
+    
+                    viewModels.Add(new Request
                     {
-                        foreach (var note in portalRecord.TBL_TALEP_NOTLARs)
+                        Id = id,
+                        Title = tfs.MADDEBASLIK ?? "Başlıksız Talep",
+                        Description = portalRecord?.TXTTALEPACIKLAMA ?? "",
+                        Status = baseStatus,
+                        DevOpsStatus = tfs.MADDEDURUM ?? "-",
+                        Date = tfs.ACILMATARIHI?.ToString("dd.MM.yyyy HH:mm") ?? DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
+                        LastModifiedDate = tfs.DEGISTIRMETARIHI?.ToString("dd.MM.yyyy") ?? "-",
+                        PlanlananPyuat = tfs.PLANLANAN_PYUAT?.ToString("dd.MM.yyyy") ?? "-",
+                        GerceklesenPyuat = tfs.GERCEKLESEN_PYUAT?.ToString("dd.MM.yyyy") ?? "-",
+                        PlanlananCanliTeslim = tfs.PLANLAN_CANLITESLIM?.ToString("dd.MM.yyyy") ?? "-",
+                        GerceklesenCanliTeslim = tfs.GERCEKLESEN_CANLITESLIM?.ToString("dd.MM.yyyy") ?? "-",
+                        Priority = "Orta",
+                        Progress = baseProgress,
+                        Budget = tfs.COST ?? "-",
+                        AssignedTo = (!string.IsNullOrEmpty(tfs.MUSTERI_SORUMLUSU) && userMap.ContainsKey(tfs.MUSTERI_SORUMLUSU)) 
+                                        ? userMap[tfs.MUSTERI_SORUMLUSU] 
+                                        : (tfs.MUSTERI_SORUMLUSU ?? "Atanmamış"),
+                        Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N0") + " K/G" : "-",
+                        Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
+                        Type = "Geliştirme",
+                        Subtasks = new List<Subtask>(),
+                        Comments = comments,
+                        LastRevisionNote = comments
+                                            .Where(c => c.Text.StartsWith("REVIZE İSTEĞİ:"))
+                                            .OrderByDescending(c => int.TryParse(c.Id, out int id) ? id : 0)
+                                            .FirstOrDefault()?.Text.Replace("REVIZE İSTEĞİ: ", ""),
+
+                        History = new List<HistoryItem>(),
+                        SurveyScore = portalRecord?.INT_ANKET_PUAN,
+                        SurveyNote = portalRecord?.TXT_ANKET_NOT
+                    });
+                }
+    
+                // B. Add Portal-Only Requests (Not synced to TFS yet)
+                var portalOnlyRequests = portalRequests
+                    .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.LNGVARUNAKOD == firmaKod && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1")) // Handle trailing spaces
+                    .ToList();
+    
+                foreach (var req in portalOnlyRequests)
+                {
+                    var comments = new List<Comment>();
+                     if (req.TBL_TALEP_NOTLARs != null)
+                    {
+                        foreach (var note in req.TBL_TALEP_NOTLARs)
                         {
                              var noteUser = _mskDb.TBL_KULLANICIs.FirstOrDefault(u => u.LNGIDENTITYKOD == note.LNGKULLANICIKOD);
                              var userName = noteUser?.TXTADSOYAD ?? "Kullanıcı";
-
+    
                             comments.Add(new Comment
                             {
                                 Id = note.LNGKOD.ToString(),
@@ -128,130 +226,86 @@ namespace UniCP.Controllers
                             });
                         }
                     }
-                }
+                    
+                    // Get Status
+                     var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
+                            .Where(l => l.LNGTALEPKOD == req.LNGKOD)
+                            .OrderByDescending(l => l.TRHDURUMBASLANGIC)
+                            .Include(l => l.LNGDURUMKODNavigation)
+                            .FirstOrDefault();
+                    
+                    var status = "Analiz";
+                    if(latestLog?.LNGDURUMKODNavigation != null) status = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
 
-                // Fix progress for display
-                if (baseProgress == 100 && (baseStatus == "Analiz" || baseStatus == "ACTIVE")) baseProgress = 15;
-                if (baseProgress == 0 && baseStatus == "Analiz") baseProgress = 15;
-
-                decimal? yazilimInfo = tfs.YAZILIM_TOPLAMAG;
-
-                viewModels.Add(new Request
-                {
-                    Id = id,
-                    Title = tfs.MADDEBASLIK ?? "Başlıksız Talep",
-                    Description = portalRecord?.TXTTALEPACIKLAMA ?? "",
-                    Status = baseStatus,
-                    DevOpsStatus = tfs.MADDEDURUM ?? "-",
-                    Date = tfs.ACILMATARIHI?.ToString("dd.MM.yyyy HH:mm") ?? DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
-                    LastModifiedDate = tfs.DEGISTIRMETARIHI?.ToString("dd.MM.yyyy") ?? "-",
-                    PlanlananPyuat = tfs.PLANLANAN_PYUAT?.ToString("dd.MM.yyyy") ?? "-",
-                    GerceklesenPyuat = tfs.GERCEKLESEN_PYUAT?.ToString("dd.MM.yyyy") ?? "-",
-                    PlanlananCanliTeslim = tfs.PLANLAN_CANLITESLIM?.ToString("dd.MM.yyyy") ?? "-",
-                    GerceklesenCanliTeslim = tfs.GERCEKLESEN_CANLITESLIM?.ToString("dd.MM.yyyy") ?? "-",
-                    Priority = "Orta",
-                    Progress = baseProgress,
-                    Budget = tfs.COST ?? "-",
-                    AssignedTo = (!string.IsNullOrEmpty(tfs.MUSTERI_SORUMLUSU) && userMap.ContainsKey(tfs.MUSTERI_SORUMLUSU)) 
-                                    ? userMap[tfs.MUSTERI_SORUMLUSU] 
-                                    : (tfs.MUSTERI_SORUMLUSU ?? "Atanmamış"),
-                    Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N0") + " K/G" : "-",
-                    Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
-                    Type = "Geliştirme",
-                    Subtasks = new List<Subtask>(),
-                    Comments = comments,
-                    History = new List<HistoryItem>() 
-                });
-            }
-
-            // B. Add Portal-Only Requests (Not synced to TFS yet)
-            var portalOnlyRequests = portalRequests
-                .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.LNGVARUNAKOD == firmaKod && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1")) // Handle trailing spaces
-                .ToList();
-
-            foreach (var req in portalOnlyRequests)
-            {
-                var comments = new List<Comment>();
-                 if (req.TBL_TALEP_NOTLARs != null)
-                {
-                    foreach (var note in req.TBL_TALEP_NOTLARs)
+                    // SELF-HEALING: If status is not "Canlıya Geçiş", clear survey data
+                    if (status != "Canlıya Geçiş" && (req.INT_ANKET_PUAN != null || !string.IsNullOrEmpty(req.TXT_ANKET_NOT)))
                     {
-                         var noteUser = _mskDb.TBL_KULLANICIs.FirstOrDefault(u => u.LNGIDENTITYKOD == note.LNGKULLANICIKOD);
-                         var userName = noteUser?.TXTADSOYAD ?? "Kullanıcı";
-
-                        comments.Add(new Comment
-                        {
-                            Id = note.LNGKOD.ToString(),
-                            Text = note.TXTNOT ?? "",
-                            User = userName,
-                            Date = "Not Tarihi Yok" 
-                        });
+                        req.INT_ANKET_PUAN = null;
+                        req.TXT_ANKET_NOT = null;
+                        _mskDb.SaveChanges();
                     }
+    
+                    decimal effort = req.DEC_EFOR ?? 0;
+                    string effortStr = effort > 0 ? effort.ToString("N0") + " K/G" : "-";
+                    string costStr = effort > 0 ? (effort * 22500).ToString("N0") + " TL" : "-";
+    
+                    // Parse Assignees (Stored as IDs "1,2,5") and resolve names
+                    string assigneeNames = "Atanmamış";
+                    if (!string.IsNullOrEmpty(req.TXT_SORUMLULAR))
+                    {
+                        var assigneeIds = req.TXT_SORUMLULAR.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                                            .Select(s => int.Parse(s)).ToList();
+                        var assignees = _mskDb.TBL_KULLANICIs.Where(u => u.LNGIDENTITYKOD.HasValue && assigneeIds.Contains(u.LNGIDENTITYKOD.Value)).Select(u => u.TXTADSOYAD).ToList();
+                        if(assignees.Any()) assigneeNames = string.Join(", ", assignees);
+                    }
+    
+                    viewModels.Add(new Request
+                    {
+                        Id = "PORTAL-" + req.LNGKOD,
+                        Title = req.TXTTALEPBASLIK ?? "Başlıksız",
+                        Description = req.TXTTALEPACIKLAMA ?? "",
+                        Status = status,
+                        DevOpsStatus =("-"),
+                        Date = (req.TRHKAYIT ?? DateTime.Now).ToString("dd.MM.yyyy HH:mm"),
+                        LastModifiedDate = DateTime.Now.ToString("dd.MM.yyyy"),
+                        PlanlananPyuat = "-",
+                        GerceklesenPyuat = "-",
+                        PlanlananCanliTeslim = "-",
+                        GerceklesenCanliTeslim = "-",
+                        Priority = "Orta",
+                        Progress = GetProgressForStatus(status ?? "Analiz"),
+                        Budget = "-",
+                        AssignedTo = assigneeNames,
+                        Effort = effortStr,
+                        Cost = costStr,
+                        Po = req.TXT_PO ?? "-",
+                        Type = "Geliştirme",
+                        Subtasks = new List<Subtask>(),
+                        Comments = comments,
+                        LastRevisionNote = comments
+                                            .Where(c => c.Text.StartsWith("REVIZE İSTEĞİ:"))
+                                            .OrderByDescending(c => int.TryParse(c.Id, out int id) ? id : 0)
+                                            .FirstOrDefault()?.Text.Replace("REVIZE İSTEĞİ: ", ""),
+
+                        History = new List<HistoryItem>(),
+                        SurveyScore = req.INT_ANKET_PUAN,
+                        SurveyNote = req.TXT_ANKET_NOT
+                    });
+
                 }
-                
-                // Get Status
-                 var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
-                        .Where(l => l.LNGTALEPKOD == req.LNGKOD)
-                        .OrderByDescending(l => l.TRHDURUMBASLANGIC)
-                        .Include(l => l.LNGDURUMKODNavigation)
-                        .FirstOrDefault();
-                
-                var status = "Analiz";
-                if(latestLog?.LNGDURUMKODNavigation != null) status = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
-
-                decimal effort = req.DEC_EFOR ?? 0;
-                string effortStr = effort > 0 ? effort.ToString("N0") + " K/G" : "-";
-                string costStr = effort > 0 ? (effort * 22500).ToString("N0") + " TL" : "-";
-
-                // Parse Assignees (Stored as IDs "1,2,5") and resolve names
-                string assigneeNames = "Atanmamış";
-                if (!string.IsNullOrEmpty(req.TXT_SORUMLULAR))
-                {
-                    var assigneeIds = req.TXT_SORUMLULAR.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                                        .Select(s => int.Parse(s)).ToList();
-                    var assignees = _mskDb.TBL_KULLANICIs.Where(u => u.LNGIDENTITYKOD.HasValue && assigneeIds.Contains(u.LNGIDENTITYKOD.Value)).Select(u => u.TXTADSOYAD).ToList();
-                    if(assignees.Any()) assigneeNames = string.Join(", ", assignees);
-                }
-
-                viewModels.Add(new Request
-                {
-                    Id = "PORTAL-" + req.LNGKOD,
-                    Title = req.TXTTALEPBASLIK ?? "Başlıksız",
-                    Description = req.TXTTALEPACIKLAMA ?? "",
-                    Status = status,
-                    DevOpsStatus =("-"),
-                    Date = (req.TRHKAYIT ?? DateTime.Now).ToString("dd.MM.yyyy HH:mm"),
-                    LastModifiedDate = DateTime.Now.ToString("dd.MM.yyyy"),
-                    PlanlananPyuat = "-",
-                    GerceklesenPyuat = "-",
-                    PlanlananCanliTeslim = "-",
-                    GerceklesenCanliTeslim = "-",
-                    Priority = "Orta",
-                    Progress = GetProgressForStatus(status ?? "Analiz"),
-                    Budget = "-",
-                    AssignedTo = assigneeNames,
-                    Effort = effortStr,
-                    Cost = costStr,
-                    Po = req.TXT_PO ?? "-",
-                    Type = "Geliştirme",
-                    Subtasks = new List<Subtask>(),
-                    Comments = comments,
-                    History = new List<HistoryItem>()
-                });
+    
+                // Use a simple C# based sort to avoid complex LINQ translation issues
+                viewModels = viewModels.OrderByDescending(x => x.Id).ToList();
+    
+                return View(viewModels);
             }
-
-            // Sort: Portal Request (Newest First) then TFS (Newest ACILMA TARIH)
-            // But viewModels currently mixes them.
-            // Let's sort by Date desc if possible. Since Date format is string, it's tricky.
-            // But we inserted them in order. Let's put Portal Requests at the TOP.
-            // Sort by Date Descending (Newest First)
-            viewModels = viewModels.OrderByDescending(x => 
+            catch (Exception ex)
             {
-                if(DateTime.TryParseExact(x.Date, "dd.MM.yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out DateTime dt)) return dt;
-                return DateTime.MinValue;
-            }).ToList();
-
-            return View(viewModels);
+                // Fallback View in case of ANY error
+                // Return an empty list but maybe log the error?
+                // For now, returning empty list allows user to see the page at least.
+                return View(new List<Request>());
+            }
         }
 
         [HttpPost]
@@ -287,6 +341,14 @@ namespace UniCP.Controllers
             };
 
             _mskDb.TBL_TALEP_AKIS_LOGs.Add(log);
+
+            // Reset Survey if moving away from "Canlıya Geçiş"
+            if (status != "Canlıya Geçiş")
+            {
+                talep.INT_ANKET_PUAN = null;
+                talep.TXT_ANKET_NOT = null;
+            }
+
             _mskDb.SaveChanges();
 
             return Json(new { success = true });
@@ -451,6 +513,16 @@ namespace UniCP.Controllers
             }
         }
 
+
+
+
+
+
+
+
+
+
+
         [HttpGet]
         public IActionResult GetFiles(string id, string? talepNo)
         {
@@ -512,9 +584,6 @@ namespace UniCP.Controllers
              return Json(users);
         }
 
-        // Helper Methods
-
-
         [HttpPost]
         public IActionResult UpdatePo(string id, string po)
         {
@@ -539,16 +608,11 @@ namespace UniCP.Controllers
             var talep = GetOrCreateTalep(id, userId);
             if (talep == null) return Json(new { success = false, message = "Talep bulunamadı" });
 
-            // Check conditions: Only "Portal" requests (not syned to TFS yet ideally) and Status "Analiz" (1st step)
-            // Or simpler: Check if it has TFS Number. If it has TFS Number, we can't delete easily.
-            // User requirement: "Yeni açılan talep silinebilmeli".
-
             if (talep.LNGTFSNO.HasValue && talep.LNGTFSNO > 0)
             {
                 return Json(new { success = false, message = "TFS ile senkronize olmuş talepler silinemez." });
             }
 
-            // Check current status
             var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
                             .Where(l => l.LNGTALEPKOD == talep.LNGKOD)
                             .OrderByDescending(l => l.TRHDURUMBASLANGIC)
@@ -562,39 +626,115 @@ namespace UniCP.Controllers
                  return Json(new { success = false, message = "Sadece 'Yeni Talep' veya 'Analiz' aşamasındaki talepler silinebilir." });
             }
 
-            // Soft Delete or Hard Delete?
-            // Usually Soft Delete: BYTDURUM = 0
             talep.BYTDURUM = "0"; // Passive
             _mskDb.SaveChanges();
 
             return Json(new { success = true });
         }
 
-        [HttpGet]
-        public IActionResult DebugRequests()
+        [HttpPost]
+        public IActionResult RequestRevision(string id, string reason)
         {
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
-            var kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
+
+            var talep = GetOrCreateTalep(id, userId);
+            if (talep == null) return Json(new { success = false, message = "Talep bulunamadı" });
+
+            // 1. Add Revision Note
+            var note = new TBL_TALEP_NOTLAR
+            {
+                LNGTALEPKOD = talep.LNGKOD,
+                TXTNOT = "REVIZE İSTEĞİ: " + reason,
+                LNGKULLANICIKOD = userId,
+                BYTDURUM = 1
+            };
+            _mskDb.TBL_TALEP_NOTLARs.Add(note);
+
+            // 2. Update Status to Proje Testi (Back to Project Test)
+            var statusStr = "Proje Testi";
+            var statusRecord = _mskDb.TBL_TALEP_AKISDURUMLARIs.FirstOrDefault(s => s.TXTDURUMADI == statusStr);
+            if (statusRecord == null)
+            {
+                statusRecord = new TBL_TALEP_AKISDURUMLARI { TXTDURUMADI = statusStr };
+                _mskDb.TBL_TALEP_AKISDURUMLARIs.Add(statusRecord);
+            }
+
+            // 3. Log
+             var log = new TBL_TALEP_AKIS_LOG
+            {
+                LNGTALEPKOD = talep.LNGKOD,
+                LNGTFSNO = talep.LNGTFSNO,
+                LNGDURUMKOD = statusRecord.LNGKOD,
+                TRHDURUMBASLANGIC = DateTime.Now,
+                LNGONAYKULLANICI = userId,
+                // LNGSIRA: Calculate max + 1
+                LNGSIRA = (_mskDb.TBL_TALEP_AKIS_LOGs.Where(l => l.LNGTALEPKOD == talep.LNGKOD).Max(l => (int?)l.LNGSIRA) ?? 0) + 1
+            };
+            _mskDb.TBL_TALEP_AKIS_LOGs.Add(log);
+
+            // Reset Survey (since we are moving back to Test/Dev)
+            talep.INT_ANKET_PUAN = null;
+            talep.TXT_ANKET_NOT = null;
             
-            var allRequests = _mskDb.TBL_TALEPs.ToList();
-            
-            return Json(new {
-                User = new {
-                    Id = userId,
-                    Name = kullanici?.TXTADSOYAD,
-                    FirmaKod = kullanici?.LNGORTAKFIRMAKOD,
-                    Email = kullanici?.TXTEMAIL
-                },
-                Requests = allRequests.Select(r => new {
-                    Id = r.LNGKOD,
-                    Title = r.TXTTALEPBASLIK,
-                    FirmaKod = r.LNGVARUNAKOD,
-                    TrhKayit = r.TRHKAYIT,
-                    TfsNo = r.LNGTFSNO,
-                    Durum = r.BYTDURUM
-                }).ToList()
-            });
+            _mskDb.SaveChanges();
+
+            return Json(new { success = true });
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SubmitSurvey(string id, int score, string? note)
+        {
+            try
+            {
+                var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Oturum açmanız gerekiyor." });
+
+                // Find or Create wrapper
+                var talep = _mskDb.TBL_TALEPs.FirstOrDefault(t => t.LNGKOD.ToString() == id || (t.LNGTFSNO.ToString() == id && t.LNGTFSNO > 0)); 
+                
+                int? portalId = null;
+                int? tfsId = null;
+
+                if (id.StartsWith("PORTAL-")) { int.TryParse(id.Replace("PORTAL-", ""), out int pId); portalId = pId; }
+                else if (id.StartsWith("TFS-")) { int.TryParse(id.Replace("TFS-", ""), out int tId); tfsId = tId; }
+                else { int.TryParse(id, out int pId); portalId = pId; }
+
+                TBL_TALEP? talepRecord = null;
+                if(portalId.HasValue && portalId.Value > 0) talepRecord = _mskDb.TBL_TALEPs.FirstOrDefault(t => t.LNGKOD == portalId.Value);
+                if(talepRecord == null && tfsId.HasValue && tfsId.Value > 0) talepRecord = _mskDb.TBL_TALEPs.FirstOrDefault(t => t.LNGTFSNO == tfsId.Value);
+
+                if (talepRecord == null)
+                {
+                    if (tfsId.HasValue && tfsId.Value > 0)
+                    {
+                        talepRecord = new TBL_TALEP
+                        {
+                            LNGTFSNO = tfsId.Value,
+                            // TXTTALEPBASLIK? Maybe fetch or leave empty
+                            // LNGPROJEKOD = 1 // default
+                            TRHKAYIT = DateTime.Now
+                        };
+                        _mskDb.TBL_TALEPs.Add(talepRecord);
+                    }
+                    else
+                    {
+                        return Json(new { success = false, message = "Talep bulunamadı." });
+                    }
+                }
+
+                // Update Score
+                talepRecord.INT_ANKET_PUAN = score;
+                talepRecord.TXT_ANKET_NOT = note;
+                
+                await _mskDb.SaveChangesAsync();
+
+                return Json(new { success = true });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { success = false, message = ex.Message });
+            }
         }
 
         private TBL_TALEP? GetOrCreateTalep(string idStr, int userId)
@@ -632,8 +772,7 @@ namespace UniCP.Controllers
                 if (talep == null)
                 {
                     // Create Shadow Record
-                    // Need to fetch TFS Title for better record, but optional
-                    var tfsItem = _mskDb.SP_TFS_GELISTIRME(2).FirstOrDefault(t => t.TFSNO == tfsNo); // FirmaKod hardcoded 2 for lookup scope
+                    var tfsItem = _mskDb.SP_TFS_GELISTIRME(2).FirstOrDefault(t => t.TFSNO == tfsNo);
                     
                     talep = new TBL_TALEP
                     {

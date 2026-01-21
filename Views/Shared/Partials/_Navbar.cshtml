@@ -1,3 +1,12 @@
+@using Microsoft.AspNetCore.Identity
+@using UniCP.Models.Kullanici
+@inject UserManager<AppUser> UserManager
+
+@{
+    var appUser = await UserManager.GetUserAsync(User);
+    var tokenBalance = appUser?.TokenBalance ?? 0;
+}
+
 <header class="h-20 flex items-center justify-between px-8 sticky top-0 z-10 bg-white/70 backdrop-blur-xl border-b border-gray-100">
     <!-- Search Bar -->
     <div class="flex-1 max-w-xl">
@@ -13,6 +22,9 @@
 
     <!-- Right Side Actions -->
     <div class="flex items-center space-x-6">
+        
+        <!-- Token Balance Badge Removed -->
+
         <!-- Notifications -->
         <button class="relative p-2 text-gray-400 hover:text-gray-600 transition-colors">
             <i class="bi bi-bell text-xl"></i>

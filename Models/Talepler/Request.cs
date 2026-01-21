@@ -27,9 +27,12 @@ namespace UniCP.Models.Talepler
         public string? Po { get; set; }
         public string Type { get; set; } = "Geliştirme";
         public string AssignedTo { get; set; } = string.Empty;
+        public string? LastRevisionNote { get; set; }
         public List<Subtask> Subtasks { get; set; } = new();
         public List<Comment> Comments { get; set; } = new();
         public List<HistoryItem> History { get; set; } = new();
+        public int? SurveyScore { get; set; }
+        public string? SurveyNote { get; set; }
     }
 
     public class Subtask

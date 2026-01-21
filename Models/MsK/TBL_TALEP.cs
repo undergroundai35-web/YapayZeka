@@ -41,6 +41,12 @@ public partial class TBL_TALEP
     [Column(TypeName = "datetime")]
     public DateTime? TRHKAYIT { get; set; }
 
+    public int? INT_ANKET_PUAN { get; set; }
+    
+    [StringLength(500)]
+    [Unicode(false)]
+    public string? TXT_ANKET_NOT { get; set; }
+
     [InverseProperty("LNGTALEPKODNavigation")]
     public virtual ICollection<TBL_TALEP_FILE> TBL_TALEP_FILEs { get; set; } = new List<TBL_TALEP_FILE>();
 

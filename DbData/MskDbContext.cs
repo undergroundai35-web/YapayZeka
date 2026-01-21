@@ -54,6 +54,8 @@ public partial class MskDbContext : DbContext
 
     public virtual DbSet<WWDENEME> WWDENEMEs { get; set; }
 
+    public virtual DbSet<VIEW_ORTAK_PROJE_ISIMLERI> VIEW_ORTAK_PROJE_ISIMLERIs { get; set; }
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseSqlServer("Name=ConnectionStrings:MsKConnection");
 
@@ -128,6 +130,11 @@ public partial class MskDbContext : DbContext
         modelBuilder.Entity<WWDENEME>(entity =>
         {
             entity.ToView("WWDENEME");
+        });
+
+        modelBuilder.Entity<VIEW_ORTAK_PROJE_ISIMLERI>(entity =>
+        {
+            entity.ToView("VIEW_ORTAK_PROJE_ISIMLERI");
         });
 
         OnModelCreatingPartial(modelBuilder);

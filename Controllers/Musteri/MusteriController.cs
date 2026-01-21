@@ -5,6 +5,8 @@ using System.Security.Claims;
 using UniCP.DbData;
 using UniCP.Models;
 using UniCP.Models.Kullanici;
+using UniCP.Models.MsK.SpModels;
+using Microsoft.EntityFrameworkCore;
 
 namespace UniCP.Controllers.Musteri
 {
@@ -29,14 +31,48 @@ namespace UniCP.Controllers.Musteri
             if (kullanici == null) return RedirectToAction("Login", "Account");
 
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "test@univera.com.tr";
+            
+            // Default to user's company, but override if "ProjectCode" claim exists (from Login selection)
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProjectCode))
+            {
+                firmaKod = selectedProjectCode;
+            }
 
             DateTime trh = new DateTime(2025, 1, 1);
-            var stats = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(firmaKod), email, trh).ToList();
-            var slaData = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(firmaKod)).ToList();
-            
-            // Fetch open tickets to calculate exact "Kritik" (Escalated or Overdue) count
-            var openTickets = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, 3).ToList();
+            var stats = new List<SSP_N4B_TICKET_DURUM_SAYILARI>();
+            var slaData = new List<SSP_N4B_SLA_ORAN>();
+            var openTickets = new List<SSP_N4B_TICKETLARI>();
+            var liveTfsRequests = new List<SSP_TFS_GELISTIRME>();
+
+            try 
+            {
+                stats = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(firmaKod), email, trh).ToList();
+            }
+            catch (Exception ex) 
+            { 
+                Console.WriteLine($"[Dashboard] Stat Error (Firma: {firmaKod}): {ex.Message}"); 
+            }
+
+            try 
+            {
+                slaData = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(firmaKod)).ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Dashboard] SLA Error (Firma: {firmaKod}): {ex.Message}");
+            }
+
+            try 
+            {
+                // Fetch open tickets to calculate exact "Kritik" (Escalated or Overdue) count
+                openTickets = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, 3).ToList();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Dashboard] Tickets Error (Firma: {firmaKod}): {ex.Message}");
+            }
 
             ViewBag.OpenTicketsCount = stats.Where(i => i.Durum.Contains("Açık", StringComparison.OrdinalIgnoreCase)).Select(i => i.Sayi).Sum();
             
@@ -48,7 +84,15 @@ namespace UniCP.Controllers.Musteri
             );
 
             // Fetch Active Development Requests (Logic from TaleplerController)
-            var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
+            try 
+            {
+                liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Dashboard] TFS Error (Firma: {firmaKod}): {ex.Message}");
+            }
+            
             var startDate = new DateTime(2025, 1, 1);
             var openDevRequestsCount = liveTfsRequests
                 .Count(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
@@ -61,6 +105,37 @@ namespace UniCP.Controllers.Musteri
                               tfs.ACILMATARIHI >= startDate);
 
             ViewBag.OpenDevRequestsCount = openDevRequestsCount;
+
+            // Fetch Portal Data to get actual statuses - Trusting TFS as source of truth for company
+            var portalRequests = _mskDb.TBL_TALEPs.Where(r => r.LNGTFSNO > 0).ToList();
+            var portalMap = portalRequests.GroupBy(r => r.LNGTFSNO.Value)
+                                          .ToDictionary(g => g.Key, g => g.First());
+            decimal pendingBudgetEffort = 0;
+
+            foreach (var tfs in liveTfsRequests)
+            {
+                var portalRecord = portalMap.ContainsKey(tfs.TFSNO) ? portalMap[tfs.TFSNO] : null;
+
+                if (portalRecord != null)
+                {
+                    var latestLog = _mskDb.TBL_TALEP_AKIS_LOGs
+                        .Where(l => l.LNGTALEPKOD == portalRecord.LNGKOD)
+                        .OrderByDescending(l => l.TRHDURUMBASLANGIC)
+                        .Include(l => l.LNGDURUMKODNavigation)
+                        .FirstOrDefault();
+
+                    if (latestLog?.LNGDURUMKODNavigation != null)
+                    {
+                        var currentStatus = latestLog.LNGDURUMKODNavigation.TXTDURUMADI ?? "";
+                        if (currentStatus.Contains("Bütçe", StringComparison.OrdinalIgnoreCase))
+                        {
+                            pendingBudgetEffort += tfs.YAZILIM_TOPLAMAG ?? 0;
+                        }
+                    }
+                }
+            }
+
+            ViewBag.PendingBudgetEffort = (int)Math.Round(pendingBudgetEffort);
 
             ViewBag.TotalSla = slaData.FirstOrDefault()?.ORAN ?? 100;
             ViewBag.SlaHistory = slaData;

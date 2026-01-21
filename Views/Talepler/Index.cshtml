@@ -130,7 +130,26 @@
                                 </div>
                             </td>
                             <td class="px-6 py-5">
-                                <span class="text-[11px] font-normal text-slate-500 tracking-tight">@request.Date</span>
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-[11px] font-normal text-slate-500 tracking-tight whitespace-nowrap">@request.Date</span>
+                                    @if (request.Status == "Canlıya Geçiş" && request.SurveyScore == null) 
+                                    {
+                                        <button onclick="openSurveyModal(event, '@request.Id')" class="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-[9px] font-medium transition-colors border border-emerald-500/20 whitespace-nowrap">
+                                            <i class="bi bi-check2-circle mr-1"></i> Teslim Aldım
+                                        </button>
+                                    } else if (request.SurveyScore != null)
+                                    {
+                                        <div class="flex items-center gap-1">
+                                            <span class="px-2 py-1 rounded bg-slate-800 text-amber-500 text-[9px] font-medium border border-slate-700 cursor-default" title="Değerlendirildi">
+                                               <i class="bi bi-star-fill text-[8px] mr-1"></i> @request.SurveyScore
+                                            </span>
+                                            @if(!string.IsNullOrEmpty(request.SurveyNote))
+                                            {
+                                                <i class="bi bi-chat-text-fill text-slate-600 hover:text-slate-400 transition-colors text-xs cursor-help" title="@request.SurveyNote"></i>
+                                            }
+                                        </div>
+                                    }
+                                </div>
                             </td>
                             <td class="px-6 py-5 text-right">
                                 @if ((request.Status == "Analiz" || request.Status == "Yeni Talep") && request.Id.StartsWith("PORTAL"))
@@ -145,6 +164,39 @@
                     }
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Survey Modal -->
+<div id="surveyModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100000] flex items-center justify-center p-4">
+    <div class="bg-slate-900 rounded-3xl border border-white/10 shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200" onclick="event.stopPropagation()">
+        <div class="p-8 text-center">
+            <div class="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+                 <i class="bi bi-star-fill text-2xl text-emerald-500"></i>
+            </div>
+            
+            <h3 class="text-xl font-semibold text-white mb-2">Süreç Değerlendirmesi</h3>
+            <p class="text-sm text-slate-400 mb-6">Süreç boyunca deneyimlerinizi değerlendirin</p>
+            
+            <div class="flex justify-center gap-2 mb-8" id="surveyStars">
+                <button onclick="setSurveyScore(1)" class="survey-star text-2xl text-slate-700 hover:text-amber-500 transition-colors" data-value="1"><i class="bi bi-star-fill"></i></button>
+                <button onclick="setSurveyScore(2)" class="survey-star text-2xl text-slate-700 hover:text-amber-500 transition-colors" data-value="2"><i class="bi bi-star-fill"></i></button>
+                <button onclick="setSurveyScore(3)" class="survey-star text-2xl text-slate-700 hover:text-amber-500 transition-colors" data-value="3"><i class="bi bi-star-fill"></i></button>
+                <button onclick="setSurveyScore(4)" class="survey-star text-2xl text-slate-700 hover:text-amber-500 transition-colors" data-value="4"><i class="bi bi-star-fill"></i></button>
+                <button onclick="setSurveyScore(5)" class="survey-star text-2xl text-slate-700 hover:text-amber-500 transition-colors" data-value="5"><i class="bi bi-star-fill"></i></button>
+            </div>
+
+            <div class="mb-6">
+                <textarea id="surveyNote" rows="3" class="w-full bg-slate-800/50 border border-slate-700 rounded-xl p-3 text-xs text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500/50 focus:bg-slate-800 transition-all resize-none" placeholder="Süreçle ilgili eklemek istediğiniz notlar..."></textarea>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="closeSurveyModal()" class="flex-1 py-3 text-sm font-medium text-slate-400 hover:text-white transition-colors bg-slate-800 rounded-xl">Vazgeç</button>
+                <button onclick="submitSurvey()" id="btnSubmitSurvey" disabled class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-xl transition-all shadow-lg shadow-emerald-900/20 active:scale-95">
+                    Kaydet
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -167,6 +219,80 @@
             });
         });
     });
+
+    // Survey Logic
+    let currentSurveyRequestId = null;
+    let currentSurveyScore = 0;
+
+    function openSurveyModal(event, requestId) {
+        event.stopPropagation();
+        currentSurveyRequestId = requestId;
+        currentSurveyScore = 0;
+        
+        // Reset Stars
+        document.querySelectorAll('.survey-star').forEach(s => {
+            s.classList.remove('text-amber-500');
+            s.classList.add('text-slate-700');
+        });
+        document.getElementById('surveyNote').value = '';
+        document.getElementById('btnSubmitSurvey').disabled = true;
+
+        document.getElementById('surveyModal').classList.remove('hidden');
+    }
+
+    function closeSurveyModal() {
+        document.getElementById('surveyModal').classList.add('hidden');
+    }
+
+    function setSurveyScore(score) {
+        currentSurveyScore = score;
+        document.querySelectorAll('.survey-star').forEach(s => {
+            const val = parseInt(s.getAttribute('data-value'));
+            if (val <= score) {
+                s.classList.add('text-amber-500');
+                s.classList.remove('text-slate-700');
+            } else {
+                s.classList.remove('text-amber-500');
+                s.classList.add('text-slate-700');
+            }
+        });
+        document.getElementById('btnSubmitSurvey').disabled = false;
+    }
+
+    function submitSurvey() {
+        if (!currentSurveyRequestId || currentSurveyScore === 0) return;
+
+        const btn = document.getElementById('btnSubmitSurvey');
+        const originalText = btn.innerText;
+        btn.innerText = '• • •';
+        btn.disabled = true;
+
+        const note = document.getElementById('surveyNote').value;
+
+        fetch('/Talepler/SubmitSurvey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${encodeURIComponent(currentSurveyRequestId)}&score=${currentSurveyScore}&note=${encodeURIComponent(note)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                closeSurveyModal();
+                // Optionally hide the button on the row or show success
+                window.location.reload(); 
+            } else {
+                alert('Hata: ' + data.message);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert('Bir hata oluştu.');
+            btn.innerText = originalText;
+            btn.disabled = false;
+        });
+    }
 
     function deleteRequest(event, id) {
         event.stopPropagation(); // Prevent row click
