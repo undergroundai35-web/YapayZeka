@@ -22,4 +22,6 @@ public class UserEditModel
     [Compare("Password", ErrorMessage = "Parola eşleşmiyor")]
     public string? ConfirmPassword { get; set; } = null!;
     public IList<string>? SelectedRoles { get; set; }
+    public int? LNGORTAKFIRMAKOD { get; set; }
+    public int? LNGKULLANICITIPI { get; set; }
 }

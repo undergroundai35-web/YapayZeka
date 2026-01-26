@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace UniCP.Controllers;
 
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "Role,Admin")]
 public class RoleController : Controller
 {
     private RoleManager<AppRole> _roleManager;

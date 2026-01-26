@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace UniCP.Controllers.Musteri
 {
-    [Authorize]
+    [Authorize(Roles = "Musteri,Admin")]
     public class MusteriController : Controller
     {
         private readonly MskDbContext _mskDb;

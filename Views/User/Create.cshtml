@@ -1,0 +1,60 @@
+@model UniCP.Models.Kullanici.User.UserCreateModel
+
+@{
+    ViewData["Title"] = "Yeni Kullanıcı";
+}
+
+<div class="max-w-2xl mx-auto glass-panel p-8 rounded-2xl">
+    <h2 class="text-2xl font-bold text-white mb-6">@ViewData["Title"]</h2>
+
+    <form asp-action="Create" method="post" class="space-y-6">
+        <div asp-validation-summary="ModelOnly" class="text-red-400 text-sm bg-red-500/10 p-3 rounded-lg"></div>
+
+        <div class="space-y-2">
+            <label asp-for="Email" class="text-sm font-medium text-slate-300">Email Adresi</label>
+            <input asp-for="Email" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors" />
+            <span asp-validation-for="Email" class="text-xs text-red-400"></span>
+        </div>
+
+        <div class="space-y-2">
+            <label asp-for="AdSoyad" class="text-sm font-medium text-slate-300">Ad Soyad</label>
+            <input asp-for="AdSoyad" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors" />
+            <span asp-validation-for="AdSoyad" class="text-xs text-red-400"></span>
+        </div>
+
+        <div class="space-y-2">
+            <label asp-for="Password" class="text-sm font-medium text-slate-300">Şifre</label>
+            <input asp-for="Password" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors" />
+            <span asp-validation-for="Password" class="text-xs text-red-400"></span>
+        </div>
+
+        <div class="space-y-2">
+             <label asp-for="LNGORTAKFIRMAKOD" class="text-sm font-medium text-slate-300">Firma / Proje</label>
+            <select asp-for="LNGORTAKFIRMAKOD" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors" asp-items="ViewBag.FirmaKod">
+                <option value="">Seçiniz...</option>
+            </select>
+        </div>
+
+        <div class="space-y-2">
+            <label asp-for="LNGKULLANICITIPI" class="text-sm font-medium text-slate-300">Kullanıcı Tipi</label>
+            <select asp-for="LNGKULLANICITIPI" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+                <option value="2">Müşteri</option>
+                <option value="1">Yönetici (Admin/Internal)</option>
+                <option value="3">Univera</option>
+            </select>
+        </div>
+
+        <div class="active-status-toggle">
+            <!-- Add status toggle if needed later -->
+        </div>
+
+        <div class="flex items-center gap-4 pt-4 border-t border-slate-700/50">
+            <button type="submit" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-colors font-medium">Kaydet</button>
+            <a asp-action="Index" class="px-6 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl transition-colors font-medium">İptal</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

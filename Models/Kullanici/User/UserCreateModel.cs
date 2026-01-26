@@ -12,4 +12,11 @@ public class UserCreateModel
     [Display(Name = "Eposta")]
     [EmailAddress]
     public string Email { get; set; } = null!;
+
+    [Required(ErrorMessage = "Şifre alanı zorunludur.")]
+    [DataType(DataType.Password)]
+    [Display(Name = "Şifre")]
+    public string Password { get; set; } = null!;
+    public int? LNGORTAKFIRMAKOD { get; set; }
+    public int? LNGKULLANICITIPI { get; set; }
 }

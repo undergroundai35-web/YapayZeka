@@ -7,10 +7,11 @@ using UniCP.Models.MsK.SpModels;
 using UniCP.Models.MsK;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
+using Ganss.Xss;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Talepler,Admin")]
     public class TaleplerController : Controller
     {
         private readonly MskDbContext _mskDb;
@@ -445,10 +446,14 @@ namespace UniCP.Controllers
             var talep = GetOrCreateTalep(id, userId);
             if (talep == null) return Json(new { success = false, message = "Talep bulunamadı" });
 
+            // Sanitize Input
+            var sanitizer = new HtmlSanitizer();
+            var sanitizedText = sanitizer.Sanitize(text);
+
             var note = new TBL_TALEP_NOTLAR
             {
                 LNGTALEPKOD = talep.LNGKOD,
-                TXTNOT = text,
+                TXTNOT = sanitizedText,
                 LNGKULLANICIKOD = userId,
                 BYTDURUM = 1 // Active
             };
@@ -471,6 +476,14 @@ namespace UniCP.Controllers
         public async Task<IActionResult> UploadFile(string id, IFormFile file)
         {
             if (file == null || file.Length == 0) return Json(new { success = false, message = "Dosya seçilmedi" });
+
+            // Extension Validation
+            var allowedExtensions = new[] { ".pdf", ".xslt", ".docx", ".xls", ".xlsx", ".doc", ".txt", ".jpeg", ".png" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension))
+            {
+                return Json(new { success = false, message = "Geçersiz dosya uzantısı. İzin verilenler: pdf, xslt, docx, xls, xlsx, doc, txt, jpeg, png" });
+            }
 
             var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int userId = string.IsNullOrEmpty(userIdStr) ? 0 : int.Parse(userIdStr);
@@ -641,11 +654,15 @@ namespace UniCP.Controllers
             var talep = GetOrCreateTalep(id, userId);
             if (talep == null) return Json(new { success = false, message = "Talep bulunamadı" });
 
+            // Sanitize Input
+            var sanitizer = new HtmlSanitizer();
+            var sanitizedReason = sanitizer.Sanitize(reason);
+
             // 1. Add Revision Note
             var note = new TBL_TALEP_NOTLAR
             {
                 LNGTALEPKOD = talep.LNGKOD,
-                TXTNOT = "REVIZE İSTEĞİ: " + reason,
+                TXTNOT = "REVIZE İSTEĞİ: " + sanitizedReason,
                 LNGKULLANICIKOD = userId,
                 BYTDURUM = 1
             };

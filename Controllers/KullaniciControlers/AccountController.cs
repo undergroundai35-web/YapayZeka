@@ -176,11 +176,17 @@ public class AccountController : Controller
         }
     }
 
-    public ActionResult Login()
+    public async Task<ActionResult> Login()
     {
         if (User?.Identity?.IsAuthenticated ?? false)
         {
-            return RedirectToAction("Index", "Musteri");
+             // Check if user is actually authorized for the default 'Musteri' page
+             // If not, redirect them to their rightful place
+             var user = await _userManager.GetUserAsync(User);
+             if (user != null)
+             {
+                 return await RedirectToAuthorizedPage(user);
+             }
         }
 
         try 
@@ -264,24 +270,24 @@ public class AccountController : Controller
                         return RedirectToAction("ChangePassword");
                     }
 
-                    if (!string.IsNullOrEmpty(returnUrl))
+                    if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
                     {
-                        return Redirect(returnUrl);
-                    }
-                    else
-                    {
-                        int k_tip =  Convert.ToInt16(_mskDb.TBL_KULLANICIs.Where(i=>i.LNGIDENTITYKOD== user.Id).Select(i=>i.LNGKULLANICITIPI).FirstOrDefault());
-                            
-                        if (k_tip == 2)
-                        {
-                            return RedirectToAction("Index", "Musteri");
-                        } else if (k_tip == 1)
-                        {
-                            return RedirectToAction("Index", "Musteri");
-                        }
+                        try {
+                             var debugRoles = await _userManager.GetRolesAsync(user);
+                             TempData["DebugRoles"] = string.Join(",", debugRoles);
+                             TempData["DebugReturnUrl"] = returnUrl;
+                             TempData["DebugLogic"] = "LoginPOST Check";
+                        } catch {}
 
-                        return RedirectToAction("Index", "Home");
+                        // Check if user is authorized for this URL to avoid loop
+                        // This is a basic check. If ReturnUrl is "Musteri/Index" but user doesn't have "Musteri" role, we ignore it.
+                        if (await IsUserAuthorizedForUrl(user, returnUrl))
+                        {
+                             return Redirect(returnUrl);
+                        }
                     }
+
+                    return await RedirectToAuthorizedPage(user);
 
                 }
                 else if (result.IsLockedOut)
@@ -329,6 +335,9 @@ public class AccountController : Controller
     [Authorize]
     public async Task<ActionResult> LogOut()
     {
+        // Clear all browser data (cache, cookies, storage, executionContexts) for this site
+        Response.Headers["Clear-Site-Data"] = "\"cache\", \"cookies\", \"storage\", \"executionContexts\"";
+        
         await _signInManager.SignOutAsync();
         return RedirectToAction("Login", "Account");
     }
@@ -596,6 +605,149 @@ public class AccountController : Controller
         return View(model);
     }
 
+    private async Task<ActionResult> RedirectToAuthorizedPage(AppUser user)
+    {
+         var roles = await _userManager.GetRolesAsync(user);
+         TempData["DebugRolesHelper"] = string.Join(",", roles);
+         TempData["DebugLogicHelper"] = "RedirectToAuthorizedPage Hit";
 
+        // Priority 1: Musteri / Admin (Default Dashboard)
+        if (roles.Contains("Musteri") || roles.Contains("Admin"))
+        {
+            return RedirectToAction("Index", "Musteri");
+        }
+        
+        // Priority 2: Talepler
+        if (roles.Contains("Talepler"))
+        {
+            return RedirectToAction("Index", "Talepler");
+        }
 
+        // Priority 3: Finans
+        if (roles.Contains("Finans"))
+        {
+            return RedirectToAction("Index", "Finans");
+        }
+
+        // Priority 4: Raporlar
+        if (roles.Contains("Raporlar"))
+        {
+            return RedirectToAction("Index", "Raporlar");
+        }
+        
+        // Priority 5: Lisanslar
+        if (roles.Contains("Lisanslar"))
+        {
+            return RedirectToAction("Index", "Lisanslar");
+        }
+        
+        // Priority 6: N4B
+        if (roles.Contains("N4B"))
+        {
+            return RedirectToAction("Index", "N4B");
+        }
+        
+        // Priority 7: Role Management
+        if (roles.Contains("Role"))
+        {
+            return RedirectToAction("Index", "Role");
+        }
+        
+        // Priority 8: User Management
+        if (roles.Contains("User"))
+        {
+            return RedirectToAction("Index", "User");
+        }
+
+        // Fallback
+        return RedirectToAction("Index", "Home");
+    }
+
+    private async Task<bool> IsUserAuthorizedForUrl(AppUser user, string url)
+    {
+        var roles = await _userManager.GetRolesAsync(user);
+        url = url.ToLower();
+
+        // Basic Mapping Check
+        if (url.Contains("musteri") && !(roles.Contains("Musteri") || roles.Contains("Admin"))) return false;
+        if (url.Contains("talepler") && !(roles.Contains("Talepler") || roles.Contains("Admin"))) return false;
+        if (url.Contains("finans") && !(roles.Contains("Finans") || roles.Contains("Admin"))) return false;
+        if (url.Contains("raporlar") && !(roles.Contains("Raporlar") || roles.Contains("Admin"))) return false;
+        if (url.Contains("lisanslar") && !(roles.Contains("Lisanslar") || roles.Contains("Admin"))) return false;
+        if (url.Contains("n4b") && !(roles.Contains("N4B") || roles.Contains("Admin"))) return false;
+        if (url.Contains("role") && !(roles.Contains("Role") || roles.Contains("Admin"))) return false;
+        // User Controller might be accessible by everyone or specific role, skipping restrict for now unless specifically "User" role enforced
+            return true;
+    }
+
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> GetAdminProjects()
+    {
+        var userTypeClaim = User.FindFirst("UserType")?.Value;
+        if (userTypeClaim != "1") return Json(new { success = false, message = "Yetkisiz erişim" });
+
+        var projects = await _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs
+                                .OrderBy(x => x.TXTORTAKPROJEADI)
+                                .Select(x => new { id = x.LNGKOD, name = x.TXTORTAKPROJEADI })
+                                .ToListAsync();
+        
+        return Json(new { success = true, projects = projects });
+    }
+
+    [HttpPost]
+    [Authorize]
+    public async Task<IActionResult> ChangeCompany(int companyId, string returnUrl)
+    {
+        try
+        {
+            // 1. Authorization Check
+            var userTypeClaim = User.FindFirst("UserType")?.Value;
+            if (userTypeClaim != "1") return Json(new { success = false, message = "Yetkisiz işlem" });
+
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null) return Json(new { success = false, message = "Kullanıcı bulunamadı" });
+
+            // 2. Fetch User Base Info
+            var dbUser = await _mskDb.TBL_KULLANICIs
+                        .Where(x => x.LNGIDENTITYKOD == user.Id)
+                        .Select(x => new { x.TXTFIRMAADI, x.LNGKULLANICITIPI })
+                        .FirstOrDefaultAsync();
+
+            if (dbUser == null) return Json(new { success = false, message = "Kullanıcı detayları bulunamadı" });
+
+            // 3. Re-Construct Claims
+            var claims = new List<Claim>();
+            
+            // Base Claims
+            if (!string.IsNullOrEmpty(dbUser.TXTFIRMAADI))
+            {
+                claims.Add(new Claim("FirmaAdi", dbUser.TXTFIRMAADI));
+            }
+            claims.Add(new Claim("UserType", dbUser.LNGKULLANICITIPI?.ToString() ?? "0"));
+
+            // New Project Selection Claims
+            claims.Add(new Claim("ProjectCode", companyId.ToString()));
+            
+            var projectName = await _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs
+                                .Where(p => p.LNGKOD == companyId)
+                                .Select(p => p.TXTORTAKPROJEADI)
+                                .FirstOrDefaultAsync();
+                
+            if (!string.IsNullOrEmpty(projectName))
+            {
+                claims.Add(new Claim("ProjectName", projectName));
+            }
+
+            // 4. Refresh Sign In
+            await _signInManager.SignOutAsync();
+            await _signInManager.SignInWithClaimsAsync(user, true, claims);
+
+            return Json(new { success = true });
+        }
+        catch (Exception ex)
+        {
+            return Json(new { success = false, message = "Hata: " + ex.Message });
+        }
+    }
 }

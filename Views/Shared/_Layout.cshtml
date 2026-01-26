@@ -1,46 +1,714 @@
-﻿<!DOCTYPE html>
-<html lang="tr">
+﻿@using Microsoft.Extensions.Configuration
+@using Microsoft.AspNetCore.Identity
+@using UniCP.Models.Kullanici
+@inject IConfiguration Configuration
+@inject UserManager<AppUser> UserManager
+
+@{
+    // Layout = null; // Standard Layout should not set this to null if it's the root layout
+    bool aiEnabled = Configuration.GetValue<bool>("AI:Enabled");
+    var appUser = await UserManager.GetUserAsync(User);
+    var tokenBalance = appUser?.TokenBalance ?? 0;
+    
+    // Check for Custom UserType Claim (1 = Admin/Internal)
+    var userTypeClaim = User.FindFirst("UserType")?.Value;
+    bool isCustomAdmin = userTypeClaim == "1";
+    var currentProjectName = User.FindFirst("ProjectName")?.Value ?? "Firma Seç";
+}
+
+<!DOCTYPE html>
+<html lang="tr" class="dark">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - Univera Connect</title>
 
-    <!-- Tailwind CSS (Generated) -->
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    
-    <!-- Bootstrap Icons -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b', // Custom lighter slate for cards
+                            900: '#0f172a', // Main dark bg
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-</head>
-<body class="font-sans antialiased page-enter">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
-    <div class="flex h-screen text-gray-100" style="background-color: var(--bg-main);">
-        <!-- Sidebar -->
-        <partial name="Partials/_Sidebar" />
+    <!-- Bootstrap Icons (for legacy icon support) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-        <!-- Main Content Wrapper -->
-        <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <!-- Navbar -->
-            <partial name="Partials/_Navbar" />
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e1a 0%, #1a1f37 50%, #0f1629 100%);
+            background-attachment: fixed;
+        }
+        
+        /* Page Load Animation */
+        @@keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
-            <!-- Page Content -->
-            <main class="flex-1 overflow-y-auto p-8">
-               <div class="w-full min-h-full">
-                    @RenderBody()
-               </div>
-            </main>
+        @@keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @@keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        body {
+            animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        aside {
+            animation: slideInLeft 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        main > * {
+            animation: scaleIn 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Stagger animations for cards */
+        .grid > *:nth-child(1) { animation-delay: 0.1s; }
+        .grid > *:nth-child(2) { animation-delay: 0.2s; }
+        .grid > *:nth-child(3) { animation-delay: 0.3s; }
+        .grid > *:nth-child(4) { animation-delay: 0.4s; }
+        .grid > *:nth-child(5) { animation-delay: 0.5s; }
+        
+        /* Enhanced Glassmorphism */
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(42, 51, 78, 0.4) 0%, rgba(26, 31, 55, 0.6) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: scaleIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
+        .glass-panel-static {
+            background: linear-gradient(135deg, rgba(42, 51, 78, 0.4) 0%, rgba(26, 31, 55, 0.6) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: scaleIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) backwards;
+        }
+
+        .glass-panel:hover {
+            background: linear-gradient(135deg, rgba(52, 61, 88, 0.5) 0%, rgba(36, 41, 65, 0.7) 100%);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 60px -15px rgba(0, 0, 0, 0.5),
+                        0 0 40px -10px rgba(99, 102, 241, 0.15);
+        }
+        
+        /* Distinct Sidebar with different gradient */
+        .glass-sidebar {
+            background: linear-gradient(180deg, #1e2139 0%, #252b45 50%, #1a1f37 100%);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Interactive card effects */
+        .interactive-card {
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .interactive-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+            transition: left 0.5s;
+        }
+
+        .interactive-card:hover::before {
+            left: 100%;
+        }
+
+        /* Glow effects */
+        .glow-red { box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+        .glow-blue { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4); }
+        .glow-emerald { box-shadow: 0 0 30px rgba(16, 185, 129, 0.4); }
+        .glow-amber { box-shadow: 0 0 30px rgba(245, 158, 11, 0.4); }
+        .glow-purple { box-shadow: 0 0 30px rgba(168, 85, 247, 0.4); }
+
+        /* Enhanced Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #4f46e5 0%, #6366f1 100%);
+            border-radius: 10px;
+            border: 2px solid rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #6366f1 0%, #818cf8 100%);
+        }
+
+        /* Pulse animation for live indicators */
+        @@keyframes pulse-glow {
+            0%, 100% {
+                opacity: 1;
+                box-shadow: 0 0 10px currentColor;
+            }
+            50% {
+                opacity: 0.7;
+                box-shadow: 0 0 20px currentColor;
+            }
+        }
+
+        .pulse-glow {
+            animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Shimmer animation for progress bars */
+        @@keyframes shimmer {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
+        }
+
+        .animate-shimmer {
+            animation: shimmer 2s ease-in-out infinite;
+        }
+
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+<body class="bg-[#0F172A] text-slate-200 h-screen flex overflow-hidden selection:bg-indigo-500/30 selection:text-white">
+
+    <!-- SIDEBAR -->
+    <aside class="w-64 glass-sidebar flex-shrink-0 flex flex-col h-full z-50 transition-all duration-300">
+        <!-- Brand -->
+        <div class="h-20 flex items-center gap-3 px-6 border-b border-slate-700/50">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center p-1.5 flex-shrink-0">
+                <img src="/images/branding/logo-uniconnect-2d.png" class="w-full h-full object-contain" alt="Logo">
+            </div>
+            <span class="text-lg font-bold text-white tracking-tight">Univera Connect</span>
         </div>
+
+        <!-- Navigation -->
+        <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+            @if (User.IsInRole("Musteri") || User.IsInRole("Admin"))
+            {
+                <a href="/Musteri/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-grid-1x2-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Dashboard
+                </a>
+            }
+
+            @if (User.IsInRole("Talepler") || User.IsInRole("Admin"))
+            {
+                <a href="/Talepler/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-kanban-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Geliştirme Talepleri
+                </a>
+            }
+
+            <div class="h-px bg-slate-700/50 my-4 mx-3"></div>
+
+            @if (User.IsInRole("N4B") || User.IsInRole("Admin"))
+            {
+                <a href="/N4B/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-headset mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Destek Merkezi
+                </a>
+            }
+
+            @if (User.IsInRole("Finans") || User.IsInRole("Admin"))
+            {
+                <a href="/Finans/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-wallet2 mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Finans & Fatura
+                </a>
+            }
+
+            @if (User.IsInRole("Academy") || User.IsInRole("Admin"))
+            {
+                <a href="/Academy/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                    <i class="bi bi-mortarboard-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                    Univera Akademi
+                </a>
+            }
+
+            @if (User.IsInRole("SystemPerformance") || User.IsInRole("Admin"))
+            {
+                <a href="/SystemPerformance/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400" : "")">
+                    <i class="bi bi-activity mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "text-emerald-500 group-hover:text-emerald-400" : "")"></i>
+                    Sistem Performansı
+                </a>
+            }
+
+            @if (User.IsInRole("Lisanslar") || User.IsInRole("Admin"))
+            {
+                <a href="/Lisanslar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-key-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Lisanslarım
+                </a>
+            }
+
+            @if (User.IsInRole("Raporlar") || User.IsInRole("Admin"))
+            {
+                <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                    <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                    Raporlar
+                </a>
+            }
+
+            @if (User.IsInRole("User") || User.IsInRole("Role") || User.IsInRole("Admin") || isCustomAdmin)
+            {
+                 <div class="h-px bg-slate-700/50 my-4 mx-3"></div>
+                 <div class="px-3 mb-2">
+                     <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Yönetim</p>
+                 </div>
+
+                 @if (User.IsInRole("User") || User.IsInRole("Admin") || isCustomAdmin)
+                 {
+                     <a href="/User/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "User" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                        <i class="bi bi-people-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "User" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                        Kullanıcılar
+                    </a>
+                 }
+
+                 @if (User.IsInRole("Role") || User.IsInRole("Admin") || isCustomAdmin)
+                 {
+                     <a href="/Role/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Role" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                        <i class="bi bi-shield-lock-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Role" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                        Roller
+                    </a>
+                 }
+            }
+        </div>
+
+        <!-- User Profile (Bottom) -->
+        <div class="p-4 border-t border-slate-700/50 bg-slate-900/50 space-y-3">
+
+            <!-- User Menu Popover -->
+            <div id="user-menu-popover" class="hidden absolute bottom-24 left-4 w-60 bg-slate-800 border border-slate-700 rounded-xl shadow-xl overflow-hidden z-[60] animate-in slide-in-from-bottom-2 fade-in duration-200">
+                <div class="p-3 border-b border-white/5">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold mb-2">Ayarlar</p>
+                    
+                    <div class="flex items-center justify-between p-2 rounded-lg hover:bg-white/5 transition-colors">
+                        <div class="flex items-center gap-2">
+                            <i class="bi bi-robot text-indigo-400"></i>
+                            <span class="text-xs text-slate-300 font-medium">UniCore</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="ai-toggle-switch" class="sr-only peer" onchange="toggleAiVisibility(this.checked)">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-500/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
+
+                    <!-- Cüzdan & Token Link Removed -->
+                </div>
+                <div class="p-1 items-center bg-slate-900/50">
+                     <a href="/Account/LogOut" onclick="sessionStorage.removeItem('uniCore_enabled'); sessionStorage.removeItem('uniCore_chatOpen');" class="flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors w-full">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Oturumu Kapat</span>
+                    </a>
+                </div>
+            </div>
+
+            <div onclick="toggleUserMenu()" class="flex items-center gap-3 p-2 rounded-xl hover:bg-slate-800/50 transition-colors cursor-pointer group relative" title="Kullanıcı Menüsü">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
+                    @User.Identity.Name?.Substring(0, 1).ToUpper()
+                </div>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-white truncate">@User.Identity.Name</p>
+                    <p class="text-xs text-slate-400 truncate">Müşteri Yöneticisi</p>
+                </div>
+                <i class="bi bi-three-dots-vertical text-slate-500 group-hover:text-white transition-colors"></i>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CONTENT WRAPPER -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#0F172A] relative">
+        <!-- Top Header (Mobile/Utility) -->
+        <header class="h-20 flex items-center justify-between px-8 border-b border-slate-700/30 bg-[#0F172A]/80 backdrop-blur-md sticky top-0 z-40">
+            <!-- Breadcrumb / Page Title Placeholder -->
+            @if (ViewData["HidePageHeader"] == null || !(bool)ViewData["HidePageHeader"])
+            {
+                <div>
+                    <h2 class="text-xl font-semibold text-white">@ViewData["Title"]</h2>
+                    <p class="text-sm text-slate-500">Mevcut oturum: @DateTime.Now.ToString("dd MMMM yyyy")</p>
+                </div>
+            }
+
+            <!-- Right Actions -->
+            <div class="flex items-center gap-4">
+                 <!-- Token Balance Badge -->
+                <!-- Token Balance Badge Removed -->
+                    <div class="relative">
+                        <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                        <input type="text" placeholder="Ara..." class="bg-slate-800/50 border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-64 transition-all" />
+                    </div>
+
+                    @if (isCustomAdmin)
+                    {
+                        <button onclick="openGlobalCompanyModal()" class="flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50 rounded-xl transition-all text-sm text-slate-300 hover:text-white">
+                            <i class="bi bi-building text-indigo-400"></i>
+                            <span class="max-w-[150px] truncate">@currentProjectName</span>
+                            <i class="bi bi-chevron-down text-xs text-slate-500 ml-1"></i>
+                        </button>
+                    }
+                
+                <button class="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all relative">
+                    <i class="bi bi-bell"></i>
+                    <span class="absolute top-2 right-2.5 w-2 h-2 rounded-full bg-red-500 border-2 border-[#0F172A]"></span>
+                </button>
+                
+            </div>
+        </header>
+
+        <!-- Main Scrollable Area -->
+        <main class="flex-1 overflow-y-auto p-8 scroll-smooth">
+            @RenderBody()
+        </main>
     </div>
 
-    <!-- Legacy Scripts (jQuery + Bootstrap JS if needed for older components, 
-         though we removed BS CSS, some JS might still be used by legacy views) -->
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="~/js/site.js" asp-append-version="true"></script>
+    <!-- AI Chat Widget -->
+    @if (aiEnabled)
+    {
+    <div id="ai-widget-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+        <!-- Chat Window (Hidden by default) -->
+        <div id="ai-chat-window" class="hidden w-80 md:w-96 bg-slate-900 border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right transform scale-95 opacity-0" style="height: 500px;">
+            <!-- Header -->
+            <div class="h-16 bg-gradient-to-r from-indigo-600 to-violet-600 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-white backdrop-blur-sm">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">UniCore</h3>
+                        <p class="text-[10px] text-indigo-100 flex items-center gap-1">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            Çevrimiçi
+                        </p>
+                    </div>
+                </div>
+                <button onclick="toggleChat()" class="text-white/70 hover:text-white transition-colors">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+
+            <!-- Messages Area -->
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900 scroll-smooth">
+                <!-- Welcome Message -->
+                <div class="flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700/50 p-3 rounded-2xl rounded-tl-none text-sm text-slate-300 shadow-sm max-w-[85%]">
+                        <p>Merhaba! Ben UniCore. Size finansal raporlarınızda, destek taleplerinizde veya site içinde gezinmenizde yardımcı olabilirim.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 bg-slate-800/50 border-t border-slate-700/50">
+                <form onsubmit="sendMessage(event)" class="relative">
+                    <input type="text" id="chat-input" 
+                           class="w-full bg-slate-900/50 border border-slate-700/50 text-slate-200 text-sm rounded-xl pl-4 pr-10 py-3 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 placeholder-slate-500 transition-all" 
+                           placeholder="Bir şeyler yazın... (örn: 'Ekstre indir')">
+                    <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed" id="send-btn">
+                        <i class="bi bi-send-fill text-xs"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Float Button -->
+        <button id="ai-float-btn" onclick="toggleChat()" class="hidden group relative flex items-center justify-center w-14 h-14 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-full shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/50 hover:scale-105 transition-all duration-300 z-50">
+            <div class="absolute inset-0 rounded-full bg-white/20 animate-ping opacity-0 group-hover:opacity-100 transition-opacity duration-1000"></div>
+            <i class="bi bi-chat-dots-fill text-2xl text-white drop-shadow-md"></i>
+            
+            <!-- Notification Badge -->
+            <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 border-2 border-[#0F172A] flex items-center justify-center">
+                <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+            </span>
+        </button>
+    </div>
+    }
+
+    <!-- Scripts for AI Chat -->
+    <script>
+        const chatWindow = document.getElementById('ai-chat-window');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const floatBtn = document.getElementById('ai-float-btn');
+        const userMenu = document.getElementById('user-menu-popover');
+        let isChatOpen = false;
+
+        function toggleUserMenu() {
+            if (userMenu) {
+                userMenu.classList.toggle('hidden');
+            }
+        }
+
+        // Close menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const profileDiv = document.querySelector('[onclick="toggleUserMenu()"]');
+            if (userMenu && !userMenu.classList.contains('hidden')) {
+                if (!userMenu.contains(event.target) && !profileDiv.contains(event.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            }
+        });
+
+        function toggleAiVisibility(enabled) {
+            sessionStorage.setItem('uniCore_enabled', enabled);
+            if (!floatBtn) return;
+
+            if (enabled) {
+                floatBtn.classList.remove('hidden');
+            } else {
+                floatBtn.classList.add('hidden');
+                // Also close chat if it's open
+                if (isChatOpen) {
+                    toggleChat(); 
+                }
+            }
+        }
+
+        function toggleChat() {
+            if (!chatWindow) return;
+            
+            // Rewrite visibility logic: Always show button once activated
+            if (floatBtn && floatBtn.classList.contains('hidden')) {
+                floatBtn.classList.remove('hidden');
+            }
+
+            isChatOpen = !isChatOpen;
+            sessionStorage.setItem('uniCore_chatOpen', isChatOpen);
+
+            if (isChatOpen) {
+                chatWindow.classList.remove('hidden');
+                // Small delay to allow display:block to apply before opacity transition
+                setTimeout(() => {
+                    chatWindow.classList.remove('opacity-0', 'scale-95', 'translate-y-4');
+                    chatInput.focus();
+                }, 10);
+            } else {
+                chatWindow.classList.add('opacity-0', 'scale-95', 'translate-y-4');
+                setTimeout(() => {
+                    chatWindow.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        async function sendMessage(e) {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            // Add User Message
+            appendMessage('user', message);
+            chatInput.value = '';
+            setLoading(true);
+
+            try {
+                const response = await fetch('/AI/Chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                // Add Bot Response
+                appendMessage('bot', data.text);
+
+                // Execute Action if present
+                if (data.action) {
+                    executeAction(data.action, data.payload);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                appendMessage('bot', 'Üzgünüm, bir bağlantı hatası oluştu. Lütfen tekrar deneyin.');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function appendMessage(sender, text) {
+            const isUser = sender === 'user';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `flex gap-3 ${isUser ? 'flex-row-reverse' : ''} animate-in fade-in slide-in-from-bottom-2 duration-300`;
+            
+            const avatar = isUser 
+                ? `<div class="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-sm text-white shadow-lg shadow-indigo-500/20">
+                     <i class="bi bi-person-fill"></i>
+                   </div>`
+                : `<div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                     <i class="bi bi-robot"></i>
+                   </div>`;
+
+            const bubbleClass = isUser 
+                ? 'bg-indigo-600 text-white rounded-2xl rounded-tr-none shadow-lg shadow-indigo-500/10' 
+                : 'bg-slate-800/80 border border-slate-700/50 text-slate-300 rounded-2xl rounded-tl-none shadow-sm';
+
+            messageDiv.innerHTML = `
+                ${avatar}
+                <div class="${bubbleClass} p-3 text-sm max-w-[85%] leading-relaxed chat-bubble">
+                    <p class="chat-text-content"></p>
+                </div>
+            `;
+            
+            // Safe text assignment to prevent XSS
+            messageDiv.querySelector('.chat-text-content').textContent = text;
+
+            chatMessages.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function setLoading(isLoading) {
+            sendBtn.disabled = isLoading;
+            if (isLoading) {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'chat-loading';
+                loadingDiv.className = 'flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300';
+                loadingDiv.innerHTML = `
+                    <div class="w-8 h-8 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center flex-shrink-0 text-sm border border-indigo-500/30">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-slate-800/80 border border-slate-700/50 p-4 rounded-2xl rounded-tl-none text-slate-400 shadow-sm">
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-2 h-2 bg-slate-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        </div>
+                    </div>
+                `;
+                chatMessages.appendChild(loadingDiv);
+                scrollToBottom();
+            } else {
+                const loadingDiv = document.getElementById('chat-loading');
+                if (loadingDiv) loadingDiv.remove();
+                chatInput.focus();
+            }
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+
+
+        function executeAction(action, payload) {
+            console.log(`Executing Action: ${action} -> ${payload}`);
+            
+        if (action === 'navigate') {
+                setTimeout(() => {
+                    window.location.href = payload;
+                }, 1000);
+            } else if (action === 'download') {
+                setTimeout(() => {
+                    const link = document.createElement('a');
+                    link.href = payload;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }, 1000);
+            } else if (action === 'openOrder') {
+                setTimeout(() => {
+                    if (typeof viewOrderDetails === 'function') {
+                        viewOrderDetails(payload);
+                    } else {
+                        console.error('viewOrderDetails function not found');
+                        appendMessage('bot', 'Üzgünüm, sipariş detaylarını şu an görüntüleyemiyorum.');
+                    }
+                }, 500);
+            }
+        }
+
+        // Restore State on Load
+        document.addEventListener("DOMContentLoaded", function() {
+            const storedEnabled = sessionStorage.getItem('uniCore_enabled');
+            const storedChatOpen = sessionStorage.getItem('uniCore_chatOpen');
+            
+            // Only restore if previously set (not null)
+            if (storedEnabled !== null) {
+                const isEnabled = storedEnabled === 'true';
+                const toggleSwitch = document.getElementById('ai-toggle-switch');
+                if (toggleSwitch) {
+                    toggleSwitch.checked = isEnabled;
+                    toggleAiVisibility(isEnabled);
+                }
+
+                if (isEnabled && storedChatOpen === 'true') {
+                    // Small delay to ensure float button is visible before toggling chat
+                    setTimeout(() => {
+                        if (!isChatOpen) toggleChat();
+                    }, 100);
+                }
+            }
+        });
+    </script>
+
+    <!-- Bootstrap Bundle (Optional fallback for some components) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="Partials/_OrderDetailsModal" />
+    <partial name="_CompanySelectionModal" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -2,9 +2,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using UniCP.DbData;
 using UniCP.Models.MsK;
+using Microsoft.AspNetCore.Authorization;
 
 namespace UniCP.Controllers
 {
+    [Authorize(Roles = "AI,Admin")]
     public class AIController : Controller
     {
         private readonly UniCP.Services.AI.AIService _aiService;

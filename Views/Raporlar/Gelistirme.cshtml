@@ -33,6 +33,7 @@
 
             <!-- Dropdown Menu -->
             <div x-show="open" 
+                 x-cloak
                  x-transition:enter="transition ease-out duration-100"
                  x-transition:enter-start="opacity-0 scale-95"
                  x-transition:enter-end="opacity-100 scale-100"
@@ -240,8 +241,8 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Alpine.js for Dropdown (Optional if globally included, otherwise simple JS toggle) -->
-    <script src="//unpkg.com/alpinejs" defer></script>
+    <!-- Alpine.js for Dropdown -->
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js" defer></script>
 
     <script>
         // Modal Logic
@@ -267,18 +268,27 @@
             }, 300);
         }
 
+        const sentPeriods = new Set();
+        
         // Email Sending Logic
         function sendReport(e) {
             e.preventDefault();
             const email = emailInput.value;
             if (!email) return;
 
+            const period = '@currentPeriod';
+            
+            // Check if already sent
+            if (sentPeriods.has(period)) {
+                alert('Bu periyot (' + period + ') için rapor bu oturumda zaten gönderildi. Tekrar göndermek için sayfayı yenileyiniz.');
+                return;
+            }
+
             const btn = document.getElementById('sendBtn');
             const originalContent = btn.innerHTML;
             btn.innerHTML = `<span class="animate-spin mr-2"><i class="bi bi-arrow-repeat"></i></span> Gönderiliyor...`;
             btn.disabled = true;
 
-            const period = '@currentPeriod';
             const startDate = '@startDate';
             const endDate = '@endDate';
 
@@ -296,6 +306,7 @@
             .then(data => {
                 if (data.success) {
                     alert('Başarılı: ' + data.message);
+                    sentPeriods.add(period); // Mark as sent
                     closeEmailModal();
                     emailInput.value = '';
                 } else {

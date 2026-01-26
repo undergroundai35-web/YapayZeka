@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "SystemPerformance,Admin")]
     public class SystemPerformanceController : Controller
     {
         public IActionResult Index()

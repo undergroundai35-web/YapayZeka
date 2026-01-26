@@ -33,30 +33,69 @@
     </div>
 
     <nav class="flex-1 px-3 space-y-1">
-        <a href="/Musteri/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Musteri", "Index")">
-            <i class="bi bi-grid text-lg"></i> 
-            <span class="font-normal text-sm">Dashboard</span>
-        </a>
+        @if (User.IsInRole("Musteri") || User.IsInRole("Admin"))
+        {
+            <a href="/Musteri/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Musteri", "Index")">
+                <i class="bi bi-grid text-lg"></i> 
+                <span class="font-normal text-sm">Dashboard</span>
+            </a>
+        }
         
-        <a href="/Talepler/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Talepler")">
-            <i class="bi bi-briefcase text-lg"></i> 
-            <span class="font-normal text-sm">Talepler</span>
-        </a>
+        @if (User.IsInRole("Talepler") || User.IsInRole("Admin"))
+        {
+            <a href="/Talepler/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Talepler")">
+                <i class="bi bi-briefcase text-lg"></i> 
+                <span class="font-normal text-sm">Talepler</span>
+            </a>
+        }
 
-        <a href="/N4B/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("N4B")">
-            <i class="bi bi-headset text-lg"></i> 
-            <span class="font-normal text-sm">Destek</span>
-        </a>
+        @if (User.IsInRole("N4B") || User.IsInRole("Admin"))
+        {
+            <a href="/N4B/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("N4B")">
+                <i class="bi bi-headset text-lg"></i> 
+                <span class="font-normal text-sm">Destek</span>
+            </a>
+        }
 
-        <a href="/Finans/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Finans")">
-            <i class="bi bi-file-earmark-text text-lg"></i> 
-            <span class="font-normal text-sm">Finans</span>
-        </a>
+        @if (User.IsInRole("Finans") || User.IsInRole("Admin"))
+        {
+            <a href="/Finans/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Finans")">
+                <i class="bi bi-file-earmark-text text-lg"></i> 
+                <span class="font-normal text-sm">Finans</span>
+            </a>
+        }
 
-        <a href="/Lisanslar/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Lisanslar")">
-            <i class="bi bi-credit-card text-lg"></i> 
-            <span class="font-normal text-sm">Lisanslar</span>
-        </a>
+        @if (User.IsInRole("Lisanslar") || User.IsInRole("Admin"))
+        {
+            <a href="/Lisanslar/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Lisanslar")">
+                <i class="bi bi-credit-card text-lg"></i> 
+                <span class="font-normal text-sm">Lisanslar</span>
+            </a>
+        }
+
+        @if (User.IsInRole("User") || User.IsInRole("Role") || User.IsInRole("Admin"))
+        {
+             <div class="h-px bg-white/10 my-2 mx-4"></div>
+             <div class="text-[10px] font-normal text-slate-500 uppercase tracking-[0.2em] mb-2 px-4 mt-4">
+                 YÖNETİM
+             </div>
+
+             @if (User.IsInRole("User") || User.IsInRole("Admin"))
+             {
+                 <a href="/User/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("User")">
+                    <i class="bi bi-people text-lg"></i> 
+                    <span class="font-normal text-sm">Kullanıcılar</span>
+                </a>
+             }
+
+             @if (User.IsInRole("Role") || User.IsInRole("Admin"))
+             {
+                 <a href="/Role/Index" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all @IsActive("Role")">
+                    <i class="bi bi-shield-lock text-lg"></i> 
+                    <span class="font-normal text-sm">Roller</span>
+                </a>
+             }
+        }
     </nav>
 
     <!-- Sidebar Bottom Section -->

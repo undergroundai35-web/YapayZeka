@@ -198,7 +198,7 @@
                             Dosyalar
                         </h3>
                         <div id="dropZone" class="border-2 border-dashed border-slate-700/50 rounded-3xl p-12 text-center hover:border-red-500/50 hover:bg-red-500/5 transition-all cursor-pointer group relative">
-                            <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple />
+                            <input type="file" id="fileInput" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" multiple accept=".pdf,.xslt,.docx,.xls,.xlsx,.doc,.txt,.jpeg,.png" />
                             <i class="bi bi-cloud-arrow-up text-5xl text-slate-600 group-hover:text-red-500 transition-colors mb-4 block"></i>
                             <p class="text-sm font-normal text-white tracking-widest">Dosya Yükle</p>
                             <p class="text-xs text-slate-500 mt-2">Sürükleyip bırakın veya tıklayın</p>
@@ -1075,6 +1075,7 @@
             if (item.action.includes('onay') || item.action.includes('Canlı')) iconClass = "bi-check-circle bg-emerald-500/10 text-emerald-400 border border-emerald-500/20";
             if (item.action.includes('red') || item.action.includes('iptal')) iconClass = "bi-x-circle bg-red-500/10 text-red-500 border border-red-500/20";
 
+            // Create safe elements to avoid XSS
             div.innerHTML = `
                 <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-slate-900 border-2 border-slate-700 z-10 flex items-center justify-center">
                     <div class="w-1.5 h-1.5 rounded-full ${item.type === 'status_change' ? 'bg-red-500' : 'bg-slate-500'}"></div>
@@ -1085,13 +1086,18 @@
                             <div class="w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs ${iconClass}">
                                 <i class="bi ${iconClass.split(' ')[0]}"></i>
                             </div>
-                            <span class="font-normal text-xs text-white tracking-tight">${item.user || 'Sistem'}</span>
+                            <span class="font-normal text-xs text-white tracking-tight history-user"></span>
                         </div>
                         <span class="text-[10px] font-bold text-slate-500">${item.date}</span>
                     </div>
-                    <p class="text-sm font-medium text-slate-300 pl-11">${item.action}</p>
+                    <p class="text-sm font-medium text-slate-300 pl-11 history-action"></p>
                 </div>
             `;
+            
+            // Safe text assignment
+            div.querySelector('.history-user').textContent = item.user || 'Sistem';
+            div.querySelector('.history-action').textContent = item.action;
+
             historyContainer.appendChild(div);
         });
     }
@@ -1115,18 +1121,26 @@
         comments.slice().reverse().forEach(comment => {
             const div = document.createElement('div');
             div.className = 'bg-slate-800/40 p-5 rounded-2xl border border-white/5 mb-4 hover:bg-slate-800 hover:shadow-lg transition-all';
+            
+            // Create safe structure
             div.innerHTML = `
                 <div class="flex items-center justify-between mb-2">
                     <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center font-black text-xs text-emerald-400">
-                             ${comment.user.charAt(0)}
+                        <div class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center font-black text-xs text-emerald-400 comment-avatar">
+                             
                         </div>
-                        <span class="font-normal text-xs text-white tracking-tight">${comment.user}</span>
+                        <span class="font-normal text-xs text-white tracking-tight comment-user"></span>
                     </div>
                     <span class="text-[10px] font-bold text-slate-500">${comment.date}</span>
                 </div>
-                <p class="text-sm font-medium text-slate-300 pl-11">${comment.text}</p>
+                <p class="text-sm font-medium text-slate-300 pl-11 comment-text"></p>
             `;
+
+            // Safe text assignment to avoid XSS
+            div.querySelector('.comment-avatar').textContent = comment.user.charAt(0);
+            div.querySelector('.comment-user').textContent = comment.user;
+            div.querySelector('.comment-text').textContent = comment.text;
+
             container.appendChild(div);
         });
     }
@@ -1263,7 +1277,17 @@
     }
 
     function handleFiles(files) {
-        ([...files]).forEach(uploadFile);
+        const allowedExtensions = ['.pdf', '.xslt', '.docx', '.xls', '.xlsx', '.doc', '.txt', '.jpeg', '.png'];
+        const validFiles = [...files].filter(file => {
+            const ext = '.' + file.name.split('.').pop().toLowerCase();
+            if (!allowedExtensions.includes(ext)) {
+                alert(`"${file.name}" dosyası yüklenemedi. Geçersiz uzantı.`);
+                return false;
+            }
+            return true;
+        });
+
+        validFiles.forEach(uploadFile);
     }
 
     function uploadFile(file) {

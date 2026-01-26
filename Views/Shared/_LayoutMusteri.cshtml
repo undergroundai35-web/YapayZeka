@@ -9,6 +9,11 @@
     bool aiEnabled = Configuration.GetValue<bool>("AI:Enabled");
     var appUser = await UserManager.GetUserAsync(User);
     var tokenBalance = appUser?.TokenBalance ?? 0;
+
+    // Check for Custom UserType Claim (1 = Admin/Internal)
+    var userTypeClaim = User.FindFirst("UserType")?.Value;
+    bool isCustomAdmin = userTypeClaim == "1";
+    var currentProjectName = User.FindFirst("ProjectName")?.Value ?? "Firma Seç";
 }
 
 <!DOCTYPE html>
@@ -236,49 +241,95 @@
 
         <!-- Navigation -->
         <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
-            <a href="/Musteri/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
-                <i class="bi bi-grid-1x2-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "text-red-500 group-hover:text-red-400" : "")"></i>
-                Dashboard
-            </a>
+            @if (User.IsInRole("Musteri") || User.IsInRole("Admin"))
+            {
+                <a href="/Musteri/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-grid-1x2-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Musteri" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Dashboard
+                </a>
+            }
 
-            <a href="/Talepler/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
-                <i class="bi bi-kanban-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "text-red-500 group-hover:text-red-400" : "")"></i>
-                Geliştirme Talepleri
-            </a>
+            @if (User.IsInRole("Talepler") || User.IsInRole("Admin"))
+            {
+                <a href="/Talepler/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-kanban-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Talepler" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Geliştirme Talepleri
+                </a>
+            }
 
             <div class="h-px bg-slate-700/50 my-4 mx-3"></div>
 
-            <a href="/N4B/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
-                <i class="bi bi-headset mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "text-red-500 group-hover:text-red-400" : "")"></i>
-                Destek Merkezi
-            </a>
+            @if (User.IsInRole("N4B") || User.IsInRole("Admin"))
+            {
+                <a href="/N4B/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-headset mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "N4B" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Destek Merkezi
+                </a>
+            }
 
+            @if (User.IsInRole("Finans") || User.IsInRole("Admin"))
+            {
+                <a href="/Finans/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-wallet2 mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Finans & Fatura
+                </a>
+            }
 
+            @if (User.IsInRole("Academy") || User.IsInRole("Admin"))
+            {
+                <a href="/Academy/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                    <i class="bi bi-mortarboard-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                    Univera Akademi
+                </a>
+            }
 
-            <a href="/Finans/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
-                <i class="bi bi-wallet2 mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Finans" ? "text-red-500 group-hover:text-red-400" : "")"></i>
-                Finans & Fatura
-            </a>
+            @if (User.IsInRole("SystemPerformance") || User.IsInRole("Admin"))
+            {
+                <a href="/SystemPerformance/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400" : "")">
+                    <i class="bi bi-activity mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "text-emerald-500 group-hover:text-emerald-400" : "")"></i>
+                    Sistem Performansı
+                </a>
+            }
 
-            <a href="/Academy/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
-                <i class="bi bi-mortarboard-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Academy" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
-                Univera Akademi
-            </a>
+            @if (User.IsInRole("Lisanslar") || User.IsInRole("Admin"))
+            {
+                <a href="/Lisanslar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
+                    <i class="bi bi-key-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "text-red-500 group-hover:text-red-400" : "")"></i>
+                    Lisanslarım
+                </a>
+            }
 
-            <a href="/SystemPerformance/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 hover:text-emerald-400" : "")">
-                <i class="bi bi-activity mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "SystemPerformance" ? "text-emerald-500 group-hover:text-emerald-400" : "")"></i>
-                Sistem Performansı
-            </a>
+            @if (User.IsInRole("Raporlar") || User.IsInRole("Admin"))
+            {
+                <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                    <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                    Raporlar
+                </a>
+            }
 
-            <a href="/Lisanslar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400" : "")">
-                <i class="bi bi-key-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Lisanslar" ? "text-red-500 group-hover:text-red-400" : "")"></i>
-                Lisanslarım
-            </a>
+            @if (User.IsInRole("User") || User.IsInRole("Role") || User.IsInRole("Admin") || isCustomAdmin)
+            {
+                 <div class="h-px bg-slate-700/50 my-4 mx-3"></div>
+                 <div class="px-3 mb-2">
+                     <p class="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Yönetim</p>
+                 </div>
 
-            <a href="/Raporlar/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
-                <i class="bi bi-bar-chart-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Raporlar" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
-                Raporlar
-            </a>
+                 @if (User.IsInRole("User") || User.IsInRole("Admin") || isCustomAdmin)
+                 {
+                     <a href="/User/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "User" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                        <i class="bi bi-people-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "User" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                        Kullanıcılar
+                    </a>
+                 }
+
+                 @if (User.IsInRole("Role") || User.IsInRole("Admin") || isCustomAdmin)
+                 {
+                     <a href="/Role/Index" class="nav-item group flex items-center px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200 text-slate-400 hover:text-white hover:bg-white/5 @(ViewContext.RouteData.Values["controller"]?.ToString() == "Role" ? "bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 hover:text-indigo-400" : "")">
+                        <i class="bi bi-shield-lock-fill mr-3 text-lg transition-colors group-hover:text-white @(ViewContext.RouteData.Values["controller"]?.ToString() == "Role" ? "text-indigo-500 group-hover:text-indigo-400" : "")"></i>
+                        Roller
+                    </a>
+                 }
+            }
         </div>
 
         <!-- User Profile (Bottom) -->
@@ -344,6 +395,15 @@
                     <i class="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
                     <input type="text" placeholder="Ara..." class="bg-slate-800/50 border border-slate-700 text-sm rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/50 w-64 transition-all" />
                 </div>
+                
+                @if (isCustomAdmin)
+                {
+                    <button onclick="openGlobalCompanyModal()" class="flex items-center gap-2 px-3 py-2 bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50 rounded-xl transition-all text-sm text-slate-300 hover:text-white">
+                        <i class="bi bi-building text-indigo-400"></i>
+                        <span class="max-w-[150px] truncate">@currentProjectName</span>
+                        <i class="bi bi-chevron-down text-xs text-slate-500 ml-1"></i>
+                    </button>
+                }
                 
                 <button class="w-10 h-10 rounded-xl bg-slate-800/50 border border-slate-700/50 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/50 transition-all relative">
                     <i class="bi bi-bell"></i>
@@ -642,6 +702,7 @@
     <!-- Bootstrap Bundle (Optional fallback for some components) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <partial name="Partials/_OrderDetailsModal" />
+    <partial name="_CompanySelectionModal" />
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

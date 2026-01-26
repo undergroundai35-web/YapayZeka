@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Academy,Admin")]
     public class AcademyController : Controller
     {
         public IActionResult Index()

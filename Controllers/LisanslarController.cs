@@ -4,7 +4,7 @@ using UniCP.Models.Lisans;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Lisanslar,Admin")]
     public class LisanslarController : Controller
     {
         public IActionResult Index()

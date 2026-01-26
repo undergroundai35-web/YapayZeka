@@ -13,7 +13,7 @@ using System.IO;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Finans,Admin")]
     public class FinansController : Controller
     {
         private readonly MskDbContext _mskDb;

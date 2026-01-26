@@ -10,7 +10,7 @@ using System.IO;
 
 namespace UniCP.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "Raporlar,Admin")]
     public class RaporlarController : Controller
     {
         private readonly MskDbContext _mskDb;

@@ -1,0 +1,199 @@
+ID: 5 | Name: Abalıoğlu
+ID: 6 | Name: Adecco
+ID: 7 | Name: Adel
+ID: 8 | Name: Aldemir Bilişim
+ID: 9 | Name: Alpedo
+ID: 10 | Name: Altera
+ID: 11 | Name: Altiparmak - Balparmak
+ID: 12 | Name: Anadolu Motor
+ID: 13 | Name: Anele
+ID: 14 | Name: Arbella
+ID: 15 | Name: Arçelik
+ID: 16 | Name: Arma İlaç
+ID: 17 | Name: Aroma Içecek
+ID: 18 | Name: Atropatena - İptal
+ID: 19 | Name: Avea
+ID: 20 | Name: Aydem
+ID: 21 | Name: Aztek
+ID: 22 | Name: Barilla
+ID: 23 | Name: Belgin Madeni Yağlar
+ID: 24 | Name: Benckiser
+ID: 25 | Name: BEST Transformer
+ID: 26 | Name: Beylerbeyi
+ID: 27 | Name: Bilginoğlu Endüstri
+ID: 28 | Name: Biotalab
+ID: 29 | Name: Bmc
+ID: 30 | Name: Bng Yazılım
+ID: 31 | Name: Brisa
+ID: 32 | Name: Brown Forman
+ID: 33 | Name: Bunge
+ID: 34 | Name: Burda Bebek
+ID: 35 | Name: Cenasis Yazılım
+ID: 36 | Name: Çaykur
+ID: 37 | Name: Danone Tikveşli
+ID: 38 | Name: Danone Waters
+ID: 39 | Name: Dardanel
+ID: 40 | Name: Data Net Bilgisayar
+ID: 41 | Name: Data Özel Eğitim
+ID: 42 | Name: Değisim Grup-Jacobs
+ID: 43 | Name: Deva İçecek
+ID: 44 | Name: Do&Co Stokbar
+ID: 45 | Name: Doğadan
+ID: 46 | Name: Doğanay Gıda
+ID: 47 | Name: Doğuş Çay
+ID: 48 | Name: Düzey Pazarlama
+ID: 49 | Name: Eczacıbaşı Intema
+ID: 50 | Name: Efes Azerbeycan
+ID: 51 | Name: Efes Belarus
+ID: 52 | Name: Efes Gürcistan
+ID: 53 | Name: Efes Kazakistan
+ID: 54 | Name: Efes Kıbrıs
+ID: 55 | Name: Efes Moldova
+ID: 56 | Name: Efes Türkiye
+ID: 57 | Name: Efes Ukraine
+ID: 58 | Name: Ege-Tav
+ID: 59 | Name: Ektam Kıbrıs
+ID: 60 | Name: Elda Meşrubat
+ID: 61 | Name: Emakin
+ID: 62 | Name: Eminoğlu Mermer
+ID: 63 | Name: EnerjiSa
+ID: 64 | Name: Er-Fa
+ID: 65 | Name: Eruslu Sağlık
+ID: 66 | Name: Eti
+ID: 67 | Name: European Tobacco
+ID: 68 | Name: Evyap
+ID: 69 | Name: Felda_Iffco
+ID: 70 | Name: Glaxo
+ID: 71 | Name: Gold Harvest
+ID: 72 | Name: Habaş
+ID: 73 | Name: Halavet Gıda
+ID: 74 | Name: Haribo
+ID: 75 | Name: Hayat Kimya
+ID: 76 | Name: Henkel
+ID: 77 | Name: Hobi Kozmetik
+ID: 78 | Name: Iga Tfs Akaryakıt
+ID: 79 | Name: Imperial Tobacco
+ID: 80 | Name: Jacobs
+ID: 81 | Name: Johnson Wax
+ID: 82 | Name: JTI
+ID: 83 | Name: JTI İran
+ID: 84 | Name: JTI Sudan
+ID: 85 | Name: Jti - Quest Merch
+ID: 86 | Name: Jti Stokbar
+ID: 87 | Name: Kanal
+ID: 88 | Name: Kanat Boya Stokbar
+ID: 89 | Name: Kavaklıdere
+ID: 90 | Name: Kebir Süt
+ID: 91 | Name: Korozo
+ID: 92 | Name: K-Rides
+ID: 93 | Name: Küresel Tedarik
+ID: 94 | Name: Kyocera (Stokbar)
+ID: 95 | Name: La Lorraine
+ID: 96 | Name: La Lorraine Stokbar
+ID: 97 | Name: Leank Business
+ID: 98 | Name: Levent Kimya
+ID: 99 | Name: Lezita Stokbar
+ID: 100 | Name: Lila Kağıt
+ID: 101 | Name: Loreal
+ID: 102 | Name: Loreal Eczane
+ID: 103 | Name: Loreal Kuaför
+ID: 104 | Name: Loreal Luxe
+ID: 105 | Name: Loreal Quest
+ID: 106 | Name: Loreal Tüketici
+ID: 107 | Name: Mars
+ID: 108 | Name: Mars Quest Merch
+ID: 109 | Name: Marsa
+ID: 110 | Name: Marshall
+ID: 111 | Name: Matriks
+ID: 112 | Name: Matriks Bilgisayar
+ID: 113 | Name: Medipet
+ID: 114 | Name: Meditera Stokbar
+ID: 115 | Name: Menderes Home
+ID: 116 | Name: Mey
+ID: 117 | Name: Mey Quest
+ID: 118 | Name: Miya
+ID: 119 | Name: Mondelez
+ID: 120 | Name: Mondelez - Quest
+ID: 121 | Name: Mopak Kağıt Stokbar
+ID: 122 | Name: Motul
+ID: 123 | Name: Moy Bilgisayar
+ID: 124 | Name: Murr Elektronik
+ID: 125 | Name: Nestle Professional
+ID: 126 | Name: Nestle Retail
+ID: 127 | Name: Nestle Waters DSD
+ID: 128 | Name: Nestle Waters(Erikli)
+ID: 129 | Name: Newal
+ID: 130 | Name: Nivea
+ID: 131 | Name: Nivera Quest
+ID: 132 | Name: Novatek Bilişim
+ID: 133 | Name: Nurol Makina
+ID: 134 | Name: Ofçay - Efor
+ID: 135 | Name: Opet
+ID: 136 | Name: Opet Stokbar
+ID: 137 | Name: OS2 Kazakistan
+ID: 138 | Name: Özgörkey
+ID: 139 | Name: Özgörkey Stokbar
+ID: 140 | Name: Panasonic
+ID: 141 | Name: Panda
+ID: 142 | Name: Paşabahçe
+ID: 143 | Name: Pernod Ricard
+ID: 144 | Name: Perrigo
+ID: 145 | Name: Petlas
+ID: 146 | Name: Petrol Ofisi Mayras
+ID: 147 | Name: Philips
+ID: 148 | Name: Pilot Car
+ID: 149 | Name: Polaris
+ID: 150 | Name: Puratos
+ID: 151 | Name: Red Bull
+ID: 152 | Name: Royal Canin
+ID: 153 | Name: Royal Canin Quest
+ID: 154 | Name: Saba Piliç Azerbaycan
+ID: 155 | Name: Sanipak Bos
+ID: 156 | Name: Sanipak Epsis
+ID: 157 | Name: Sarper İçecek
+ID: 158 | Name: Satem Grup
+ID: 159 | Name: Satem Grup Quest
+ID: 160 | Name: SBR Tarım Ürünleri
+ID: 161 | Name: Schneider
+ID: 162 | Name: Schwarzkopf
+ID: 163 | Name: Shell
+ID: 164 | Name: Sırma
+ID: 165 | Name: Silver Shoes
+ID: 166 | Name: Solgar Stokbar
+ID: 167 | Name: Starbucks Stokbar
+ID: 168 | Name: Suzuki
+ID: 169 | Name: Sütaş ESY
+ID: 170 | Name: Sütaş Mono Distribütör
+ID: 171 | Name: Şeker Piliç
+ID: 172 | Name: Şen Piliç
+ID: 173 | Name: Şen Piliç Stokbar
+ID: 174 | Name: Şölen
+ID: 175 | Name: Şölen Irak
+ID: 176 | Name: Tadım
+ID: 177 | Name: Tadım Export
+ID: 178 | Name: Tadım Quest
+ID: 179 | Name: Tamek
+ID: 180 | Name: Tavuk Dünyası
+ID: 181 | Name: Tchibo
+ID: 182 | Name: Tırsan Stokbar
+ID: 183 | Name: Togg
+ID: 184 | Name: Topkapı İçecek
+ID: 185 | Name: Torku Stokbar
+ID: 186 | Name: TPI Composites
+ID: 187 | Name: Trakya Cam
+ID: 188 | Name: Turkuaz
+ID: 189 | Name: Turkuaz CAT Central Asia
+ID: 190 | Name: Türk Telekom
+ID: 191 | Name: TürkTab
+ID: 192 | Name: Uludağ
+ID: 193 | Name: Uludağ Dubai
+ID: 194 | Name: Uludağ Quest
+ID: 195 | Name: Unilever Stokbar İran
+ID: 196 | Name: Univera
+ID: 197 | Name: Vileda Quest
+ID: 198 | Name: Vodafone
+ID: 199 | Name: Vodafone KKTC
+ID: 200 | Name: Wagner
+ID: 201 | Name: WebPlus
+ID: 202 | Name: Websis Yazılım
+ID: 203 | Name: Weitnauer

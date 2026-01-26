@@ -1,0 +1,33 @@
+DEBUG | Firma: 143 | Raw SP Count: 21 | Filtered Count: 12 | Filter: 3months | Time: 21.01.2026 18:16:19
+Sample Order: UNC2026000000004 | Date: 12.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 23.01.2026 16:27:32
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 22 | Filter: year | Time: 23.01.2026 16:27:36
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 23.01.2026 16:32:59
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 23.01.2026 16:33:19
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 23.01.2026 17:06:50
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 30 | Filter: 3months | Time: 23.01.2026 18:04:37
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 30 | Filter: 3months | Time: 23.01.2026 22:21:50
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 24.01.2026 08:29:38
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 24.01.2026 08:29:56
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 24.01.2026 08:30:04
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 24.01.2026 08:34:54
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 24.01.2026 08:35:06
+DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 30 | Filter: 3months | Time: 24.01.2026 08:50:54
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 9 | Filter: month | Time: 24.01.2026 08:51:07
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 2 | Filter: month | Time: 24.01.2026 08:51:17
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 24.01.2026 08:51:21
+Sample Order:  | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 30 | Filter: 3months | Time: 26.01.2026 15:55:47
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 26.01.2026 16:16:00
+Sample Order: UNB2026000000007 | Date: 22.01.2026 00:00:00

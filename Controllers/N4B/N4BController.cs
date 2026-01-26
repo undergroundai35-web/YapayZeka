@@ -8,7 +8,7 @@ using UniCP.Models.MsK.SpModels;
 
 namespace UniCP.Controllers.N4B
 {
-    [Authorize]
+    [Authorize(Roles = "N4B,Admin")]
     public class N4BController : Controller
     {
         private readonly MskDbContext _mskDb;
