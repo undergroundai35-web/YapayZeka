@@ -23,7 +23,7 @@ namespace UniCP.Controllers
 
         [Route("Talepler")]
         [Route("Talepler/Index")]
-        public IActionResult Index()
+        public IActionResult Index(string status = null)
         {
             try
             {
@@ -50,38 +50,70 @@ namespace UniCP.Controllers
             // Determine Company Code (Use Claim if available, else fallback to User Profile)
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
             var projectClaim = User.FindFirst("ProjectCode");
-            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            
+            // Multi-Company Logic for Type 3 (Univera)
+            List<int> targetCompanies = new List<int>();
+
+            if (kullanici.LNGKULLANICITIPI == 3)
+            {
+                 // Fetch assigned companies
+                 targetCompanies = _mskDb.TBL_KULLANICI_FIRMAs
+                                     .Where(f => f.LNGKULLANICIKOD == kullanici.LNGKOD)
+                                     .Select(f => f.LNGFIRMAKOD)
+                                     .ToList();
+            }
+            
+            if (!targetCompanies.Any() && projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
             {
                 firmaKod = selectedProject;
+                targetCompanies.Add(firmaKod);
             }
-
-
+            else if (!targetCompanies.Any())
+            {
+                 targetCompanies.Add(firmaKod);
+            }
+            
+            // Load Project Names for Mapping
+            var projectNames = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs
+                                .Where(p => targetCompanies.Contains(p.LNGKOD))
+                                .ToDictionary(p => p.LNGKOD, p => p.TXTORTAKPROJEADI);
 
             // 1. Fetch TFS Data (System of Record for "External" Requests)
             List<SSP_TFS_GELISTIRME> filteredTfs = new List<SSP_TFS_GELISTIRME>();
 
             try 
             {
-                var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
-
-                // Filter TFS Data
-                var startDate = new DateTime(2025, 1, 1);
-                filteredTfs = liveTfsRequests
-                    .Where(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "CANCEL", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "CANCELED", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "SEND BACK", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "SEND-BACK", StringComparison.OrdinalIgnoreCase) &&
-                                    !string.Equals(tfs.MADDEDURUM, "REJECTED", StringComparison.OrdinalIgnoreCase) &&
-                                    tfs.ACILMATARIHI >= startDate)
-                        .ToList();
-                }
-                catch (Exception)
+                foreach(var companyId in targetCompanies) 
                 {
-                    // Silently fail for TFS data if DB error (e.g. Divide by Zero)
-                    // This prevents the whole page from crashing
+                    try {
+                        var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(companyId));
+                        // Attach Company ID or Name virtually if model allows (Model doesn't have it, will use Dictionary map in View)
+                        // Or extend model via partial? For now we just aggregate.
+                        
+                        // Filter TFS Data
+                        var startDate = new DateTime(2025, 1, 1);
+                        var companyFiltered = liveTfsRequests
+                            .Where(tfs => !string.Equals(tfs.MADDEDURUM, "CLOSED", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "CANCEL", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "CANCELED", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "RESOLVED", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "SEND BACK", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "SEND-BACK", StringComparison.OrdinalIgnoreCase) &&
+                                            !string.Equals(tfs.MADDEDURUM, "REJECTED", StringComparison.OrdinalIgnoreCase) &&
+                                            tfs.ACILMATARIHI >= startDate)
+                                .ToList();
+                        
+                        // Tag entries with companyId if possible or just add
+                        // Using a simple workaround: We can't tag SSP result easily without extending class. 
+                        // But we CAN filter Portal data by Company.
+                        filteredTfs.AddRange(companyFiltered);
+                    } catch {}
                 }
+            } // Close Try
+            catch (Exception)
+            {
+                 // Silently fail logic handled inside loop
+            }
     
                 // Fetch Users for Mapping (Project Responsible Code -> Name)
                 var users = _mskDb.TBL_KULLANICIs
@@ -172,7 +204,7 @@ namespace UniCP.Controllers
                     {
                         Id = id,
                         Title = tfs.MADDEBASLIK ?? "Başlıksız Talep",
-                        Description = portalRecord?.TXTTALEPACIKLAMA ?? "",
+                        Description = (portalRecord?.TXTTALEPACIKLAMA ?? "") + (projectNames.ContainsKey(portalRecord?.LNGVARUNAKOD ?? 0) ? $" [{projectNames[portalRecord?.LNGVARUNAKOD ?? 0]}]" : ""), // Hacky way to show company TODO: Add clean UI column
                         Status = baseStatus,
                         DevOpsStatus = tfs.MADDEDURUM ?? "-",
                         Date = tfs.ACILMATARIHI?.ToString("dd.MM.yyyy HH:mm") ?? DateTime.Now.ToString("dd.MM.yyyy HH:mm"),
@@ -187,8 +219,8 @@ namespace UniCP.Controllers
                         AssignedTo = (!string.IsNullOrEmpty(tfs.MUSTERI_SORUMLUSU) && userMap.ContainsKey(tfs.MUSTERI_SORUMLUSU)) 
                                         ? userMap[tfs.MUSTERI_SORUMLUSU] 
                                         : (tfs.MUSTERI_SORUMLUSU ?? "Atanmamış"),
-                        Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N0") + " K/G" : "-",
-                        Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
+                        Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N2") + " K/G" : "-",
+                        Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N2") + " TL" : "-", 
                         Type = "Geliştirme",
                         Subtasks = new List<Subtask>(),
                         Comments = comments,
@@ -205,7 +237,10 @@ namespace UniCP.Controllers
     
                 // B. Add Portal-Only Requests (Not synced to TFS yet)
                 var portalOnlyRequests = portalRequests
-                    .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.LNGVARUNAKOD == firmaKod && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1")) // Handle trailing spaces
+                    .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) 
+                                && r.LNGVARUNAKOD.HasValue 
+                                && targetCompanies.Contains(r.LNGVARUNAKOD.Value) 
+                                && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1")) 
                     .ToList();
     
                 foreach (var req in portalOnlyRequests)
@@ -235,11 +270,11 @@ namespace UniCP.Controllers
                             .Include(l => l.LNGDURUMKODNavigation)
                             .FirstOrDefault();
                     
-                    var status = "Analiz";
-                    if(latestLog?.LNGDURUMKODNavigation != null) status = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
+                    var itemStatus = "Analiz";
+                    if(latestLog?.LNGDURUMKODNavigation != null) itemStatus = latestLog.LNGDURUMKODNavigation.TXTDURUMADI;
 
                     // SELF-HEALING: If status is not "Canlıya Geçiş", clear survey data
-                    if (status != "Canlıya Geçiş" && (req.INT_ANKET_PUAN != null || !string.IsNullOrEmpty(req.TXT_ANKET_NOT)))
+                    if (itemStatus != "Canlıya Geçiş" && (req.INT_ANKET_PUAN != null || !string.IsNullOrEmpty(req.TXT_ANKET_NOT)))
                     {
                         req.INT_ANKET_PUAN = null;
                         req.TXT_ANKET_NOT = null;
@@ -247,8 +282,8 @@ namespace UniCP.Controllers
                     }
     
                     decimal effort = req.DEC_EFOR ?? 0;
-                    string effortStr = effort > 0 ? effort.ToString("N0") + " K/G" : "-";
-                    string costStr = effort > 0 ? (effort * 22500).ToString("N0") + " TL" : "-";
+                    string effortStr = effort > 0 ? effort.ToString("N2") + " K/G" : "-";
+                    string costStr = effort > 0 ? (effort * 22500).ToString("N2") + " TL" : "-";
     
                     // Parse Assignees (Stored as IDs "1,2,5") and resolve names
                     string assigneeNames = "Atanmamış";
@@ -265,7 +300,7 @@ namespace UniCP.Controllers
                         Id = "PORTAL-" + req.LNGKOD,
                         Title = req.TXTTALEPBASLIK ?? "Başlıksız",
                         Description = req.TXTTALEPACIKLAMA ?? "",
-                        Status = status,
+                        Status = itemStatus,
                         DevOpsStatus =("-"),
                         Date = (req.TRHKAYIT ?? DateTime.Now).ToString("dd.MM.yyyy HH:mm"),
                         LastModifiedDate = DateTime.Now.ToString("dd.MM.yyyy"),
@@ -274,7 +309,7 @@ namespace UniCP.Controllers
                         PlanlananCanliTeslim = "-",
                         GerceklesenCanliTeslim = "-",
                         Priority = "Orta",
-                        Progress = GetProgressForStatus(status ?? "Analiz"),
+                        Progress = GetProgressForStatus(itemStatus ?? "Analiz"),
                         Budget = "-",
                         AssignedTo = assigneeNames,
                         Effort = effortStr,
@@ -295,8 +330,19 @@ namespace UniCP.Controllers
 
                 }
     
-                // Use a simple C# based sort to avoid complex LINQ translation issues
+                // Sort first
                 viewModels = viewModels.OrderByDescending(x => x.Id).ToList();
+
+                // Prepare Filter List
+                var statusList = viewModels.Select(r => r.Status).Distinct().OrderBy(s => s).ToList();
+                ViewBag.StatusList = statusList;
+                ViewBag.CurrentStatus = status;
+
+                // Apply Filter if selected
+                if (!string.IsNullOrEmpty(status))
+                {
+                    viewModels = viewModels.Where(r => r.Status == status).ToList();
+                }
     
                 return View(viewModels);
             }

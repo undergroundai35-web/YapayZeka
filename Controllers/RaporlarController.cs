@@ -192,27 +192,46 @@ namespace UniCP.Controllers
             
             string firmaAdi = kullanici.TXTFIRMAADI ?? "";
 
-            // 1. Fetch TFS Data
-            // 1. Fetch TFS Data
-            int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
-            var projectClaim = User.FindFirst("ProjectCode");
-            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
-            {
-                firmaKod = selectedProject;
-            }
-            var liveTfsRequests = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(firmaKod));
+            // 1. Determine Target Companies
+            var targetCompanies = new List<int>();
+            int defaultFirmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
 
-            // DEBUG LOGGING PROJECTS
-            try {
-                var allProj = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs.ToList();
-                var projDump = string.Join("\n", allProj.Select(p => $"ID: {p.LNGKOD} | Name: {p.TXTORTAKPROJEADI}"));
-                System.IO.File.WriteAllText("debug_projects.txt", projDump);
-                
-                var rawCount = liveTfsRequests.Count();
-                System.IO.File.AppendAllText("debug_raporlar_data.txt", $"DEBUG | Firma: {firmaKod} | Raw TFS Count: {rawCount} | Period: {period} | Time: {DateTime.Now}\n");
-            } catch (Exception ex) {
-                System.IO.File.AppendAllText("debug_raporlar_data.txt", $"DEBUG ERROR: {ex.Message}\n");
+            if (kullanici.LNGKULLANICITIPI == 3)
+            {
+                 targetCompanies = _mskDb.TBL_KULLANICI_FIRMAs
+                                     .Where(f => f.LNGKULLANICIKOD == kullanici.LNGKOD)
+                                     .Select(f => f.LNGFIRMAKOD)
+                                     .ToList();
             }
+
+            // Fallback Logic
+            var projectClaim = User.FindFirst("ProjectCode");
+            if (!targetCompanies.Any() && projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            {
+                targetCompanies.Add(selectedProject);
+            }
+            else if (!targetCompanies.Any())
+            {
+                 targetCompanies.Add(defaultFirmaKod);
+            }
+
+
+            // 2. Fetch TFS Data (Aggregated)
+            var liveTfsRequests = new List<SSP_TFS_GELISTIRME>();
+            foreach (var code in targetCompanies)
+            {
+                try 
+                {
+                    var tfs = _mskDb.SP_TFS_GELISTIRME(Convert.ToInt16(code)).ToList();
+                    liveTfsRequests.AddRange(tfs);
+                }
+                catch (Exception ex) 
+                {
+                     // Log error?
+                     Console.WriteLine($"Error fetching TFS for company {code}: {ex.Message}");
+                }
+            }
+
 
             // Filtering Logic
             DateTime startDate;
@@ -255,18 +274,29 @@ namespace UniCP.Controllers
                 .OrderByDescending(tfs => tfs.ACILMATARIHI)
                 .ToList();
 
-            // 2. Fetch Portal Data
+            // 3. Fetch Portal Data
+            var tfsIds = liveTfsRequests.Select(t => t.TFSNO).Distinct().ToList();
+
             var portalRequests = _mskDb.TBL_TALEPs
                 .Include(t => t.TBL_TALEP_NOTLARs)
                 .Include(t => t.TBL_TALEP_FILEs)
+                .Where(r => (r.LNGVARUNAKOD.HasValue && targetCompanies.Contains(r.LNGVARUNAKOD.Value)) 
+                            || (r.LNGTFSNO.HasValue && tfsIds.Contains(r.LNGTFSNO.Value)))
                 .ToList();
 
             var portalMap = portalRequests
                 .Where(r => r.LNGTFSNO.HasValue && r.LNGTFSNO.Value > 0)
                 .GroupBy(r => r.LNGTFSNO.Value)
                 .ToDictionary(g => g.Key, g => g.First());
+            
+            // Helper to get company name if needed, but for now we use scope 'firmaAdi' or user's main company name? 
+            // Actually 'firmaAdi' is just the User's company name. 
+            // Better to show the specific company name for each request if user is Type 3?
+            // For now, let's stick to the current design or maybe fetch company names? 
+            // The VIEW/Model doesn't seem to have CompanyName per request easily without Join.
+            // Let's use the 'firmaAdi' (User's company) as default but ideally we should show the request's company.
 
-            // 3. Merge Data
+            // 4. Merge Data
             var viewModels = new List<Request>();
 
             foreach (var tfs in filteredTfs)
@@ -306,7 +336,7 @@ namespace UniCP.Controllers
                     Id = id,
                     Title = tfs.MADDEBASLIK ?? "Başlıksız Talep",
                     Description = portalRecord?.TXTTALEPACIKLAMA ?? "",
-                    Company = firmaAdi,
+                    Company = firmaAdi, // Maybe update this later to be dynamic if needed
                     Status = baseStatus,
                     DevOpsStatus = tfs.MADDEDURUM ?? "-",
                     Date = tfs.ACILMATARIHI?.ToString("dd.MM.yyyy") ?? DateTime.Now.ToString("dd.MM.yyyy"),
@@ -317,13 +347,13 @@ namespace UniCP.Controllers
                     Progress = baseProgress,
                     Budget = tfs.COST ?? "-",
                     AssignedTo = tfs.YARATICI ?? "Atanmamış",
-                    Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N0") + " K/G" : "-",
-                    Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N0") + " TL" : "-", 
+                    Effort = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? yazilimInfo.Value.ToString("N2") + " K/G" : "-",
+                    Cost = yazilimInfo.HasValue && yazilimInfo.Value > 0 ? (yazilimInfo.Value * 22500).ToString("N2") + " TL" : "-", 
                     Type = "Geliştirme"
                 });
             }
 
-            // 4. Add Portal-Only Requests (Not in TFS yet)
+            // 5. Add Portal-Only Requests (Not in TFS yet)
             var portalOnlyRequests = portalRequests
                 .Where(r => (!r.LNGTFSNO.HasValue || r.LNGTFSNO == 0) && r.TRHKAYIT >= startDate && r.TRHKAYIT <= endDate && (r.BYTDURUM == null || r.BYTDURUM.Trim() == "1"))
                 .ToList();
@@ -346,8 +376,8 @@ namespace UniCP.Controllers
                     Progress = 0,
                     Budget = "-",
                     AssignedTo = !string.IsNullOrEmpty(req.TXT_SORUMLULAR) ? req.TXT_SORUMLULAR : "Atanmamış",
-                    Effort = req.DEC_EFOR.HasValue ? req.DEC_EFOR.Value.ToString("N0") + " K/G" : "-",
-                    Cost = req.DEC_EFOR.HasValue ? (req.DEC_EFOR.Value * 22500).ToString("N0") + " TL" : "-",
+                    Effort = req.DEC_EFOR.HasValue ? req.DEC_EFOR.Value.ToString("N2") + " K/G" : "-",
+                    Cost = req.DEC_EFOR.HasValue ? (req.DEC_EFOR.Value * 22500).ToString("N2") + " TL" : "-",
                     Po = req.TXT_PO ?? "-", // Should display PO
                     Type = "Geliştirme"
                 });

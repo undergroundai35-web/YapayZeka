@@ -35,9 +35,26 @@ namespace UniCP.Controllers.N4B
             string email = User.FindFirstValue(ClaimTypes.Email) ?? "test@univera.com.tr";
             int firmaKod = kullanici.LNGORTAKFIRMAKOD ?? 2;
             var projectClaim = User.FindFirst("ProjectCode");
-            if (projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
+            
+            // Multi-Company Logic for Type 3 (Univera)
+            List<int> targetCompanies = new List<int>();
+
+            if (kullanici.LNGKULLANICITIPI == 3)
+            {
+                 targetCompanies = _mskDb.TBL_KULLANICI_FIRMAs
+                                     .Where(f => f.LNGKULLANICIKOD == kullanici.LNGKOD)
+                                     .Select(f => f.LNGFIRMAKOD)
+                                     .ToList();
+            }
+            
+            if (!targetCompanies.Any() && projectClaim != null && int.TryParse(projectClaim.Value, out int selectedProject))
             {
                 firmaKod = selectedProject;
+                targetCompanies.Add(firmaKod);
+            }
+            else if (!targetCompanies.Any())
+            {
+                 targetCompanies.Add(firmaKod);
             }
 
             // User specified: Pass 3 for 'BildirimTipi' to get Open tickets
@@ -50,14 +67,23 @@ namespace UniCP.Controllers.N4B
 
             try 
             {
-                bildirim_durum_sayı = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(firmaKod), email, trh);
+                foreach (var companyId in targetCompanies)
+                {
+                    try 
+                    {
+                        var stats = _mskDb.SP_N4B_TICKET_DURUM_SAYILARI(Convert.ToInt16(companyId), email, trh);
+                        bildirim_durum_sayı.AddRange(stats);
+
+                        var tickets = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(companyId), email, id);
+                        bildirimler.AddRange(tickets);
+                        
+                        var sla = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(companyId));
+                        slaList.AddRange(sla);
+                    } catch {}
+                }
                 
-                // Call SP with id=3 (or requested id) and implicitly trust it returns the correct set
-                bildirimler = _mskDb.SP_N4B_TICKETLARI(Convert.ToInt16(firmaKod), email, id)
-                    .OrderByDescending(x => x.Bildirim_Tarihi)
-                    .ToList();
-                
-                 slaList = _mskDb.SP_N4B_SLA_ORAN(Convert.ToInt16(firmaKod)).ToList();
+                // Post-Processing
+                bildirimler = bildirimler.OrderByDescending(x => x.Bildirim_Tarihi).ToList();
             }
             catch (Exception)
             {

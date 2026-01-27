@@ -49,11 +49,18 @@
 
         <div class="space-y-2">
             <label asp-for="LNGKULLANICITIPI" class="text-sm font-medium text-slate-300">Kullanıcı Tipi</label>
-            <select asp-for="LNGKULLANICITIPI" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors">
+            <select asp-for="LNGKULLANICITIPI" id="UserTypeSelect" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors">
                 <option value="2">Müşteri</option>
                 <option value="1">Yönetici (Admin/Internal)</option>
                 <option value="3">Univera</option>
             </select>
+        </div>
+
+        <div id="MultiCompanySelect" class="space-y-2 hidden">
+             <label class="text-sm font-medium text-slate-300">Firmalar (Univera Kullanıcıları İçin)</label>
+             <select asp-for="SelectedCompanyIds" class="w-full bg-slate-900/50 border border-slate-700 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-indigo-500 transition-colors h-32" asp-items="ViewBag.FirmaKod" multiple>
+             </select>
+             <p class="text-xs text-slate-400">* Birden fazla seçim yapmak için Ctrl tuşuna basılı tutun.</p>
         </div>
 
         <div class="h-px bg-slate-700/50 my-6"></div>
@@ -83,4 +90,21 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var userType = document.getElementById('UserTypeSelect');
+            var multiSelect = document.getElementById('MultiCompanySelect');
+
+            function toggleMultiSelect() {
+                if (userType.value == '3') {
+                    multiSelect.classList.remove('hidden');
+                } else {
+                    multiSelect.classList.add('hidden');
+                }
+            }
+
+            userType.addEventListener('change', toggleMultiSelect);
+            toggleMultiSelect(); // Initial check
+        });
+    </script>
 }

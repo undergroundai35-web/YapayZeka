@@ -54,6 +54,8 @@ public partial class MskDbContext : DbContext
 
     public virtual DbSet<WWDENEME> WWDENEMEs { get; set; }
 
+    public virtual DbSet<TBL_KULLANICI_FIRMA> TBL_KULLANICI_FIRMAs { get; set; }
+    
     public virtual DbSet<VIEW_ORTAK_PROJE_ISIMLERI> VIEW_ORTAK_PROJE_ISIMLERIs { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

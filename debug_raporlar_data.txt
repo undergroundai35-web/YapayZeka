@@ -17,3 +17,4 @@ DEBUG | Firma: 143 | Raw TFS Count: 135 | Period: 1m | Time: 26.01.2026 17:02:30
 DEBUG | Firma: 143 | Raw TFS Count: 135 | Period: 1m | Time: 26.01.2026 17:07:09
 DEBUG | Firma: 143 | Raw TFS Count: 135 | Period: 1m | Time: 26.01.2026 17:07:20
 DEBUG | Firma: 143 | Raw TFS Count: 135 | Period: 3m | Time: 26.01.2026 17:07:41
+DEBUG | Firma: 196 | Raw TFS Count: 321 | Period: 1m | Time: 27.01.2026 14:03:01

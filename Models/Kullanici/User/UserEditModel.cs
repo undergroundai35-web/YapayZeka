@@ -24,4 +24,5 @@ public class UserEditModel
     public IList<string>? SelectedRoles { get; set; }
     public int? LNGORTAKFIRMAKOD { get; set; }
     public int? LNGKULLANICITIPI { get; set; }
+    public List<int>? SelectedCompanyIds { get; set; } = new List<int>();
 }

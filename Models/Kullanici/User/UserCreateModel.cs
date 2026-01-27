@@ -19,4 +19,5 @@ public class UserCreateModel
     public string Password { get; set; } = null!;
     public int? LNGORTAKFIRMAKOD { get; set; }
     public int? LNGKULLANICITIPI { get; set; }
+    public List<int>? SelectedCompanyIds { get; set; } = new List<int>();
 }

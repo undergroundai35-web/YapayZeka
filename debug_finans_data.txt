@@ -31,3 +31,13 @@ DEBUG | Firma: 116 | Raw SP Count: 32 | Filtered Count: 30 | Filter: 3months | T
 Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
 DEBUG | Firma: 143 | Raw SP Count: 22 | Filtered Count: 13 | Filter: 3months | Time: 26.01.2026 16:16:00
 Sample Order: UNB2026000000007 | Date: 22.01.2026 00:00:00
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: 3months | Time: 27.01.2026 12:03:25
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 0 | Filter: month | Time: 27.01.2026 12:03:28
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 43 | Filter: 3months | Time: 27.01.2026 13:49:44
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 9 | Filter: month | Time: 27.01.2026 13:49:51
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 43 | Filter: 3months | Time: 27.01.2026 14:22:53
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00
+DEBUG | Firma: 196 | Raw SP Count: 0 | Filtered Count: 43 | Filter: 3months | Time: 27.01.2026 14:25:21
+Sample Order: UNE2026000000009 | Date: 20.01.2026 00:00:00

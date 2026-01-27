@@ -6,6 +6,7 @@ using UniCP.Models.Kullanici;
 using UniCP.DbData;
 using UniCP.Models.Finans;
 using UniCP.Models.MsK;
+using UniCP.Models.MsK.SpModels;
 using Microsoft.EntityFrameworkCore;
 using PdfSharpCore.Drawing;
 using PdfSharpCore.Pdf;
@@ -47,9 +48,28 @@ namespace UniCP.Controllers
                 firmaKod = selectedProject;
             }
 
+            // Multi-Company Logic for Type 3
+            List<int> targetCompanies = new List<int>();
+            if (kullanici.LNGKULLANICITIPI == 3)
+            {
+                 targetCompanies = _mskDb.TBL_KULLANICI_FIRMAs
+                                     .Where(f => f.LNGKULLANICIKOD == kullanici.LNGKOD)
+                                     .Select(f => f.LNGFIRMAKOD)
+                                     .Distinct()
+                                     .ToList();
+            }
+            
+            if (!targetCompanies.Any()) targetCompanies.Add(firmaKod);
 
-
-            var varunaSiparisler = GetFilteredOrders(firmaKod, filter, startDate, endDate);
+            // Fetch and Aggregate Orders
+            var varunaSiparisler = new List<SSP_VARUNA_SIPARIS>();
+            foreach (var cid in targetCompanies)
+            {
+                try {
+                     var orders = GetFilteredOrders(cid, filter, startDate, endDate);
+                     varunaSiparisler.AddRange(orders);
+                } catch { } // Skip failed companies
+            }
 
             // DEBUG LOGGING SP RESULTS
             try {

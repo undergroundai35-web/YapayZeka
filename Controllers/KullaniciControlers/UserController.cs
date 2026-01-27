@@ -73,7 +73,21 @@ public class UserController : Controller
                     };
                     
                     _mskDb.TBL_KULLANICIs.Add(mskUser);
-                    _mskDb.SaveChanges();
+                    _mskDb.SaveChanges(); // Get ID
+
+                    // Handle Multi-Company for Univera User (Type 3)
+                    if (model.LNGKULLANICITIPI == 3 && model.SelectedCompanyIds != null && model.SelectedCompanyIds.Any())
+                    {
+                        foreach (var companyId in model.SelectedCompanyIds)
+                        {
+                            _mskDb.TBL_KULLANICI_FIRMAs.Add(new TBL_KULLANICI_FIRMA
+                            {
+                                LNGKULLANICIKOD = mskUser.LNGKOD,
+                                LNGFIRMAKOD = companyId
+                            });
+                        }
+                        _mskDb.SaveChanges();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -118,7 +132,10 @@ public class UserController : Controller
                 Email = user.Email!,
                 SelectedRoles = await _userManager.GetRolesAsync(user),
                 LNGORTAKFIRMAKOD = mskUser?.LNGORTAKFIRMAKOD,
-                LNGKULLANICITIPI = mskUser?.LNGKULLANICITIPI
+                LNGKULLANICITIPI = mskUser?.LNGKULLANICITIPI,
+                SelectedCompanyIds = mskUser != null 
+                    ? _mskDb.TBL_KULLANICI_FIRMAs.Where(f => f.LNGKULLANICIKOD == mskUser.LNGKOD).Select(f => f.LNGFIRMAKOD).ToList()
+                    : new List<int>()
             }
         );
     }
@@ -172,6 +189,25 @@ public class UserController : Controller
                         mskUser.LNGKULLANICITIPI = model.LNGKULLANICITIPI; // 1=Admin, 2=Kullanici
                         mskUser.TXTFIRMAADI = _mskDb.VIEW_ORTAK_PROJE_ISIMLERIs.FirstOrDefault(p => p.LNGKOD == model.LNGORTAKFIRMAKOD)?.TXTORTAKPROJEADI;
                         
+                        _mskDb.SaveChanges();
+
+                        // Handle Multi-Company
+                        // 1. Clear existing
+                        var existingCompanies = _mskDb.TBL_KULLANICI_FIRMAs.Where(f => f.LNGKULLANICIKOD == mskUser.LNGKOD).ToList();
+                        if (existingCompanies.Any()) _mskDb.TBL_KULLANICI_FIRMAs.RemoveRange(existingCompanies);
+                        
+                        // 2. Add New
+                        if (model.LNGKULLANICITIPI == 3 && model.SelectedCompanyIds != null && model.SelectedCompanyIds.Any())
+                        {
+                            foreach (var companyId in model.SelectedCompanyIds)
+                            {
+                                _mskDb.TBL_KULLANICI_FIRMAs.Add(new TBL_KULLANICI_FIRMA
+                                {
+                                    LNGKULLANICIKOD = mskUser.LNGKOD,
+                                    LNGFIRMAKOD = companyId
+                                });
+                            }
+                        }
                         _mskDb.SaveChanges();
                     }
                     catch (Exception ex)

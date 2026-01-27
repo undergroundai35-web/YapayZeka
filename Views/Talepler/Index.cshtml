@@ -12,10 +12,32 @@
             <h1 class="text-2xl font-semibold text-white tracking-tight">Geliştirme Talepleri</h1>
             <p class="text-sm text-slate-400 font-normal">Aktif geliştirme talepleri ve proje süreçleri</p>
         </div>
-        <a href="/Talepler/CreateRequest" class="px-5 py-2.5 bg-[#DD2F42] hover:bg-[#B93042] text-white rounded-xl shadow-lg shadow-red-900/20 transition-all font-semibold text-xs flex items-center gap-2 hover:scale-[1.02] active:scale-95">
-            <i class="bi bi-plus-lg"></i>
-            <span>Yeni Talep Ekle</span>
-        </a>
+        <div class="flex items-center gap-3">
+             <form method="get" action="/Talepler" class="flex items-center">
+                <select name="status" onchange="this.form.submit()" class="bg-slate-800 text-slate-300 text-xs rounded-xl border border-white/10 px-3 py-2.5 focus:outline-none focus:border-indigo-500 hover:bg-slate-700 transition-colors cursor-pointer">
+                    <option value="">Tüm Durumlar</option>
+                    @if (ViewBag.StatusList != null)
+                    {
+                        @foreach (var s in ViewBag.StatusList)
+                        {
+                             if (ViewBag.CurrentStatus == s)
+                            {
+                                <option value="@s" selected>@s</option>
+                            }
+                            else
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        }
+                    }
+                </select>
+            </form>
+
+            <a href="/Talepler/CreateRequest" class="px-5 py-2.5 bg-[#DD2F42] hover:bg-[#B93042] text-white rounded-xl shadow-lg shadow-red-900/20 transition-all font-semibold text-xs flex items-center gap-2 hover:scale-[1.02] active:scale-95">
+                <i class="bi bi-plus-lg"></i>
+                <span>Yeni Talep Ekle</span>
+            </a>
+        </div>
     </div>
 
     <!-- Stats Row (Quick Glance) -->
