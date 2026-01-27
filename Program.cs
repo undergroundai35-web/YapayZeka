@@ -14,6 +14,7 @@ builder.Services.AddControllersWithViews().AddRazorRuntimeCompilation();
 builder.Services.AddTransient<UniCP.Services.GeminiService>();
 builder.Services.AddSingleton<UniCP.Services.AI.OllamaService>();
 builder.Services.AddScoped<UniCP.Services.AI.AIService>();
+builder.Services.AddMemoryCache();
 
 // Performance Optimization: Response Compression
 builder.Services.AddResponseCompression(options =>

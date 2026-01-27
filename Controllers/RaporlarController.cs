@@ -7,6 +7,7 @@ using UniCP.Models.MsK.SpModels;
 using UniCP.Models.MsK;
 using Microsoft.EntityFrameworkCore;
 using System.IO;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace UniCP.Controllers
 {
@@ -15,11 +16,13 @@ namespace UniCP.Controllers
     {
         private readonly MskDbContext _mskDb;
         private readonly UniCP.Models.IEmailService _emailService;
+        private readonly Microsoft.Extensions.Caching.Memory.IMemoryCache _cache;
 
-        public RaporlarController(MskDbContext mskDb, UniCP.Models.IEmailService emailService)
+        public RaporlarController(MskDbContext mskDb, UniCP.Models.IEmailService emailService, Microsoft.Extensions.Caching.Memory.IMemoryCache cache)
         {
             _mskDb = mskDb;
             _emailService = emailService;
+            _cache = cache;
         }
 
         public IActionResult Index()
@@ -91,6 +94,13 @@ namespace UniCP.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Oturum bulunamadı." });
             int userId = int.Parse(userIdStr);
 
+            // Rate Limiting Check
+            string cacheKey = $"MailLimit_{userId}_Dev_{period}";
+            if (_cache.TryGetValue(cacheKey, out object _))
+            {
+                 return Json(new { success = false, message = "Bu rapor kısa süre önce gönderildi. Lütfen bir süre bekleyin." });
+            }
+
             var kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
             string firmaAdi = kullanici?.TXTFIRMAADI ?? "Firma";
 
@@ -107,6 +117,13 @@ namespace UniCP.Controllers
                 ";
 
                 await _emailService.SendEmailAsync(email, subject, message, content, $"Gelistirme_Raporu_{DateTime.Now:yyyyMMdd}.xlsx");
+
+                // Set Cache Expiration (e.g., 5 minutes to prevent spam/abuse, or period duration)
+                using (var entry = _cache.CreateEntry(cacheKey))
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                    entry.Value = DateTime.Now;
+                }
 
                 return Json(new { success = true, message = $"Rapor başarıyla {email} adresine gönderildi." });
             }
@@ -393,6 +410,13 @@ namespace UniCP.Controllers
             if (string.IsNullOrEmpty(userIdStr)) return Json(new { success = false, message = "Oturum bulunamadı." });
             int userId = int.Parse(userIdStr);
 
+             // Rate Limiting Check
+            string cacheKey = $"MailLimit_{userId}_Supp_{period}";
+            if (_cache.TryGetValue(cacheKey, out object _))
+            {
+                 return Json(new { success = false, message = "Bu rapor kısa süre önce gönderildi. Lütfen bir süre bekleyin." });
+            }
+
             var kullanici = _mskDb.TBL_KULLANICIs.FirstOrDefault(i => i.LNGIDENTITYKOD == userId);
             string firmaAdi = kullanici?.TXTFIRMAADI ?? "Firma";
 
@@ -409,6 +433,13 @@ namespace UniCP.Controllers
                 ";
 
                 await _emailService.SendEmailAsync(email, subject, message, content, $"Destek_Raporu_{DateTime.Now:yyyyMMdd}.xlsx");
+
+                // Set Cache Expiration (5 Minute Cooldown)
+                using (var entry = _cache.CreateEntry(cacheKey))
+                {
+                    entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+                    entry.Value = DateTime.Now;
+                }
 
                 return Json(new { success = true, message = $"Rapor başarıyla {email} adresine gönderildi." });
             }
