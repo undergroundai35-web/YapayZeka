@@ -257,7 +257,8 @@ public class AccountController : Controller
                     }
 
                     // Sign in with additional claims
-                    await _signInManager.SignInWithClaimsAsync(user, model.BeniHatirla, claims);
+                    // Force isPersistent to false so session ends on browser close
+                    await _signInManager.SignInWithClaimsAsync(user, false, claims);
 
                     await _userManager.ResetAccessFailedCountAsync(user);
                     await _userManager.SetLockoutEndDateAsync(user, null);
@@ -741,7 +742,8 @@ public class AccountController : Controller
 
             // 4. Refresh Sign In
             await _signInManager.SignOutAsync();
-            await _signInManager.SignInWithClaimsAsync(user, true, claims);
+            // Force isPersistent to false
+            await _signInManager.SignInWithClaimsAsync(user, false, claims);
 
             return Json(new { success = true });
         }
