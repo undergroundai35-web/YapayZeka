@@ -3,6 +3,7 @@ using System.Security.Claims;
 using UniCP.DbData;
 using UniCP.Models.MsK;
 using Microsoft.AspNetCore.Authorization;
+using Ganss.Xss;
 
 namespace UniCP.Controllers
 {
@@ -24,6 +25,16 @@ namespace UniCP.Controllers
             if (string.IsNullOrWhiteSpace(request.Message))
             {
                 return Json(new { text = "Lütfen bir mesaj yazın." });
+            }
+
+            // Sanitize User Input (XSS Prevention)
+            var sanitizer = new Ganss.Xss.HtmlSanitizer();
+            request.Message = sanitizer.Sanitize(request.Message);
+
+            // Double check after sanitization
+            if (string.IsNullOrWhiteSpace(request.Message))
+            {
+                 return Json(new { text = "Lütfen geçerli bir mesaj yazın." });
             }
 
             // 1. Get User Info & Financial Data
